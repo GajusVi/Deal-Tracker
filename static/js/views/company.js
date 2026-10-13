@@ -1,10 +1,11 @@
 import { api, store } from '../api.js';
 import {
   html, raw, $, $$, logo, money, mult, pct, num, ago, fmtDate, fmtDateTime, toast, errToast, withBusy, confirmDialog,
-  dropzone, dominantColor, ICONS, fileExt, bytes, avatar, strength, sentimentChip, dateBlock, prioChip, modal, options, formValues, ring,
+  dropzone, dominantColor, ICONS, ic, fileExt, bytes, avatar, strength, sentimentChip, dateBlock, prioChip, modal, options, formValues, ring,
 } from '../ui.js';
 import { companyForm, contactForm, meetingForm, meetingView, contactView, reviewCim, renderSeriesChart, moveStage, priorLooksBanner } from '../forms.js';
 import { networkGraph } from '../graph.js';
+import { setCrumbs } from '../app.js';
 
 const TABS = [
   ['overview', 'Overview'], ['docs', 'CIM & documents'], ['models', 'Models'], ['meetings', 'Meetings'], ['people', 'People & network'], ['timeline', 'Timeline'],
@@ -22,29 +23,28 @@ export async function renderCompany(view, id, tab = 'overview') {
   if (tab === 'onepager') return renderOnePager(view, c);
   if (!TABS.some(([k]) => k === tab)) tab = 'overview';
 
+  setCrumbs([{ label: 'Companies', href: '#/companies' }, { label: c.name }]);
   view.innerHTML = String(html`
-    <div class="card hero" style="--c:${c.color}">
-      <div class="cover"></div>
+    <div class="hero" style="--c:${c.color}">
       <div class="hero-main">
-        <span id="hero-logo" title="Click to change logo">${logo(c, 'lg')}</span>
+        <span id="hero-logo" title="Change logo">${logo(c, 'lg')}</span>
         <div class="hero-title">
+          ${c.codename || c.is_demo ? html`<span class="eyebrow">${[c.codename, c.is_demo ? 'Sample' : ''].filter(Boolean).join(' · ')}</span>` : ''}
           <h1>${c.name}</h1>
-          <div class="sub">
-            ${c.codename ? html`<span>${c.codename}</span>·` : ''}
+          <div class="meta-line">
             ${c.sector ? html`<span>${c.sector}</span>` : ''}
-            ${c.country ? html`<span class="chip">📍 ${[c.hq_city, c.country].filter(Boolean).join(', ')}</span>` : ''}
-            ${c.region ? html`<span class="chip">${c.region}</span>` : ''}
-            ${c.deal_type ? html`<span class="chip">${c.deal_type}</span>` : ''}
-            ${prioChip(c.priority)}
-            ${c.is_demo ? html`<span class="chip" title="Created by the sample workspace">Sample data</span>` : ''}
-            ${c.status && c.status !== 'Active' ? html`<span class="chip">${c.status}</span>` : ''}
+            ${c.country ? html`<span>${[c.hq_city, c.country].filter(Boolean).join(', ')}</span>` : ''}
+            ${c.deal_type ? html`<span>${c.deal_type}</span>` : ''}
+            ${c.deal_lead ? html`<span>Led by ${c.deal_lead}</span>` : ''}
+            ${c.priority === 'High' ? html`<span>${prioChip(c.priority)}</span>` : ''}
+            ${c.status && c.status !== 'Active' ? html`<span>${c.status}</span>` : ''}
           </div>
         </div>
         <div class="btn-row">
-          <button class="btn" id="b-meeting">${ICONS.plus} Log meeting</button>
-          <button class="btn" id="b-upload">${ICONS.upload} Upload</button>
-          <a class="btn" href="#/company/${c.id}/onepager">One-pager</a>
-          <button class="btn primary" id="b-edit">${ICONS.edit} Edit</button>
+          <button class="btn" id="b-meeting">${ic('meetings')}Log meeting</button>
+          <button class="btn" id="b-upload">${ic('upload')}Upload</button>
+          <a class="btn" href="#/company/${c.id}/onepager">${ic('file')}One-pager</a>
+          <button class="btn primary" id="b-edit">${ic('edit')}Edit</button>
         </div>
       </div>
       <div class="stepper" id="stepper">
@@ -76,7 +76,7 @@ export async function renderCompany(view, id, tab = 'overview') {
     const b = e.target.closest('[data-stage]');
     if (!b || b.dataset.stage === c.stage) return;
     try {
-      if (await moveStage(c, b.dataset.stage)) reload();
+      if (await moveStage(c, b.dataset.stage, { onUndo: () => reload() })) reload();
     } catch (err) { errToast(err); }
   });
   $('#b-edit', view).addEventListener('click', async () => { if (await companyForm(c)) reload(); });
@@ -108,75 +108,73 @@ function overview(el, c, reload) {
   const kf = c.key_facts || {};
   const facts = (kf.facts || []).filter((f) => !['name', 'codename', 'description', 'sector', 'region'].includes(f.key));
   const tags = (c.tags || '').split(',').map((t) => t.trim()).filter(Boolean);
+  const today = new Date().toISOString().slice(0, 10);
   el.innerHTML = String(html`
     ${c.prior_looks && c.prior_looks.length ? priorLooksBanner(c.prior_looks) : ''}
     <div class="grid grid-dash">
-      <div class="stack">
-        ${c.pass_reason ? html`<div class="card card-pad" style="box-shadow:var(--shadow), inset 3px 0 0 var(--text-3)">
-          <div class="eyebrow">Decision record</div>
-          <h2 style="margin:6px 0 8px">Passed — ${c.pass_reason}</h2>
-          ${c.pass_notes ? html`<p class="t2" style="font-size:15px">${c.pass_notes}</p>` : ''}
-          <div class="chips">${c.revisit_date ? html`<span class="chip warn">Revisit ${fmtDate(c.revisit_date)}</span>` : ''}${c.deal_lead ? html`<span class="chip">Lead: ${c.deal_lead}</span>` : ''}</div>
+      <div>
+        ${c.pass_reason ? html`<div class="record" style="margin-bottom:40px">
+          <span class="eyebrow">Decision record</span>
+          <h2>Passed: ${c.pass_reason}</h2>
+          ${c.pass_notes ? html`<p class="prose t2">${c.pass_notes}</p>` : ''}
+          <div class="meta-line">${c.revisit_date ? html`<span>Revisit ${fmtDate(c.revisit_date)}</span>` : ''}${c.deal_lead ? html`<span>Lead ${c.deal_lead}</span>` : ''}</div>
         </div>` : ''}
-        <div class="card card-pad">
-          <h2 style="margin-bottom:8px">About</h2>
-          <p class="t2">${c.description || raw('<span class="muted">No description yet — edit the company or apply facts from a CIM.</span>')}</p>
-          ${tags.length ? html`<div class="chips">${tags.map((t) => html`<span class="chip">#${t}</span>`)}</div>` : ''}
+        <div class="section">
+          <div class="section-head"><h2>About</h2></div>
+          <p class="prose">${c.description || raw('<span class="muted">No description yet. Edit the company or apply facts from a CIM.</span>')}</p>
+          ${tags.length ? html`<div class="chips">${tags.map((t) => html`<span class="chip">${t}</span>`)}</div>` : ''}
         </div>
-        <div class="card">
-          <div class="card-head"><h2>Key facts</h2>${kf.applied_at ? html`<small class="muted">from CIM · ${ago(kf.applied_at)}</small>` : ''}</div>
-          <div class="card-body">
-            ${facts.length ? html`<div class="facts">${facts.map((f) => html`
-              <div class="fact" title="${f.snippet || ''}"><small class="muted"><span>${f.label}</span>${f.page ? html`<span>p.${f.page}</span>` : ''}</small><b>${f.display}</b></div>`)}</div>`
-              : html`<div class="empty" style="padding:16px">Upload a CIM in <a href="#/company/${c.id}/docs">CIM & documents</a> to detect key facts automatically.</div>`}
-          </div>
+        <div class="section">
+          <div class="section-head"><h2>Key facts</h2>${kf.applied_at ? html`<span class="aside">from CIM, ${ago(kf.applied_at)}</span>` : ''}</div>
+          ${facts.length ? html`<div class="facts">${facts.map((f) => html`
+            <div class="fact" title="${f.snippet || ''}"><small class="muted"><span>${f.label}</span>${f.page ? html`<span>p. ${f.page}</span>` : ''}</small><b>${f.display}</b></div>`)}</div>`
+            : html`<div class="panel empty">${ic('scan')}<p style="margin:0">Upload a CIM in <a class="link" href="#/company/${c.id}/docs">CIM &amp; documents</a> and key facts are found for you.</p></div>`}
         </div>
-        ${kf.series && kf.series.revenue ? html`<div class="card"><div class="card-head"><h2>Financial profile</h2><small class="muted">${kf.currency || c.currency} millions</small></div><div class="card-body" id="fin"></div></div>` : ''}
+        ${kf.series && kf.series.revenue ? html`<div class="section"><div class="section-head"><h2>Financial profile</h2><span class="aside">${kf.currency || c.currency} millions</span></div><div id="fin"></div></div>` : ''}
         ${(kf.highlights || []).length || (kf.risks || []).length ? html`
-          <div class="grid grid-2">
-            <div class="card card-pad"><h2 style="margin-bottom:10px">Investment highlights</h2>${(kf.highlights || []).length ? html`<ul class="bullets">${kf.highlights.map((h) => html`<li>${h.text}</li>`)}</ul>` : html`<p class="muted">—</p>`}</div>
-            <div class="card card-pad"><h2 style="margin-bottom:10px">Risks & diligence questions</h2>${(kf.risks || []).length ? html`<ul class="bullets">${kf.risks.map((h) => html`<li>${h.text}</li>`)}</ul>` : html`<p class="muted">—</p>`}</div>
+          <div class="grid grid-2 section">
+            <div><div class="section-head"><h2>Investment highlights</h2></div>${(kf.highlights || []).length ? html`<ul class="bullets">${kf.highlights.map((h) => html`<li>${h.text}</li>`)}</ul>` : html`<p class="muted">None recorded.</p>`}</div>
+            <div><div class="section-head"><h2>Risks and open questions</h2></div>${(kf.risks || []).length ? html`<ul class="bullets">${kf.risks.map((h) => html`<li>${h.text}</li>`)}</ul>` : html`<p class="muted">None recorded.</p>`}</div>
           </div>` : ''}
-        ${kf.summary ? html`<div class="card card-pad"><h2 style="margin-bottom:8px">Claude summary</h2><p class="t2">${kf.summary}</p></div>` : ''}
+        ${kf.summary ? html`<div class="section"><div class="section-head"><h2>Claude's summary</h2></div><p class="prose t2">${kf.summary}</p></div>` : ''}
       </div>
-      <div class="stack">
-        <div class="card card-pad">
-          <div class="row" style="gap:18px;align-items:center;margin-bottom:16px">${ring(c.knowledge.score, 72)}
-            <div><h2>Deal memory</h2><p class="muted" style="margin:4px 0 0;font-size:13px">What a successor would inherit if ${c.deal_lead || 'the team'} left tomorrow.</p></div></div>
-          <ul class="checklist">${c.knowledge.checks.map((k) => html`<li class="${k.done ? '' : 'off'}"><span class="ck ${k.done ? 'on' : 'off'}">${k.done ? '✓' : ''}</span>${k.label}</li>`)}</ul>
+      <div>
+        <div class="panel panel-pad">
+          <div class="row" style="gap:16px;margin-bottom:16px">${ring(c.knowledge.score, 60)}
+            <div><h2>Deal memory</h2><p class="muted" style="margin:3px 0 0;font-size:12.5px">What a successor would inherit if ${c.deal_lead || 'the team'} moved on tomorrow.</p></div></div>
+          <ul class="checklist">${c.knowledge.checks.map((k) => html`<li class="${k.done ? '' : 'off'}"><span class="ck ${k.done ? 'on' : 'off'}">${k.done ? ic('check') : ''}</span>${k.label}</li>`)}</ul>
         </div>
-        <div class="card card-pad">
-          <h2 style="margin-bottom:12px">Deal details</h2>
+        <div class="section">
+          <div class="section-head"><h2>Deal details</h2></div>
           <dl class="kv">
-            <dt>Stage</dt><dd><span class="chip stage">${c.stage}</span></dd>
-            <dt>Next step</dt><dd>${c.next_step ? html`${c.next_step}${c.next_step_date ? html` <span class="${c.next_step_date < new Date().toISOString().slice(0, 10) ? 'overdue' : 'muted'}">· ${fmtDate(c.next_step_date)}</span>` : ''}` : '—'}</dd>
-            <dt>Deal lead</dt><dd>${c.deal_lead ? html`<a href="#/team/${encodeURIComponent(c.deal_lead)}">${c.deal_lead}</a>` : html`<span class="overdue">Unassigned</span>`}</dd>
-            <dt>Deal team</dt><dd>${c.deal_team || '—'}</dd>
-            <dt>NDA</dt><dd>${c.nda_signed_date ? html`Signed ${fmtDate(c.nda_signed_date)}${c.nda_expiry_date ? html` · <span class="${c.nda_expiry_date < new Date().toISOString().slice(0, 10) ? 'overdue' : ''}">ends ${fmtDate(c.nda_expiry_date)}</span>` : ''}` : '—'}</dd>
-            <dt>Advisor</dt><dd>${c.advisor || '—'}</dd>
-            <dt>Source</dt><dd>${c.source || '—'}</dd>
-            <dt>Ownership</dt><dd>${c.ownership || '—'}</dd>
-            <dt>Founded</dt><dd>${c.founded_year || '—'}</dd>
-            <dt>Website</dt><dd>${c.website ? html`<a href="${/^https?:/.test(c.website) ? c.website : 'https://' + c.website}" target="_blank" rel="noopener">${c.website} ↗</a>` : '—'}</dd>
-            <dt>EV / Revenue</dt><dd>${c.ev_revenue != null ? `${c.ev_revenue.toFixed(2)}x` : '—'}</dd>
+            <dt>Next step</dt><dd>${c.next_step ? html`${c.next_step}${c.next_step_date ? html` <span class="${c.next_step_date < today ? 'overdue' : 'muted'}">· ${fmtDate(c.next_step_date)}</span>` : ''}` : html`<span class="muted">None recorded</span>`}</dd>
+            <dt>Deal lead</dt><dd>${c.deal_lead ? html`<a class="link" href="#/team/${encodeURIComponent(c.deal_lead)}">${c.deal_lead}</a>` : html`<span class="overdue">Unassigned</span>`}</dd>
+            ${c.deal_team ? html`<dt>Deal team</dt><dd>${c.deal_team}</dd>` : ''}
+            ${c.nda_signed_date ? html`<dt>NDA</dt><dd>Signed ${fmtDate(c.nda_signed_date)}${c.nda_expiry_date ? html`<br><span class="${c.nda_expiry_date < today ? 'overdue' : 'muted'}">Confidentiality ends ${fmtDate(c.nda_expiry_date)}</span>` : ''}</dd>` : ''}
+            ${c.advisor ? html`<dt>Advisor</dt><dd>${c.advisor}</dd>` : ''}
+            ${c.source ? html`<dt>Source</dt><dd>${c.source}</dd>` : ''}
+            ${c.ownership ? html`<dt>Ownership</dt><dd>${c.ownership}</dd>` : ''}
+            ${c.founded_year ? html`<dt>Founded</dt><dd>${c.founded_year}</dd>` : ''}
+            ${c.website ? html`<dt>Website</dt><dd><a class="link" href="${/^https?:/.test(c.website) ? c.website : 'https://' + c.website}" target="_blank" rel="noopener">${c.website.replace(/^https?:\/\//, '')}</a></dd>` : ''}
+            ${c.ev_revenue != null ? html`<dt>EV / Revenue</dt><dd class="num">${c.ev_revenue.toFixed(2)}x</dd>` : ''}
             <dt>Added</dt><dd>${fmtDateTime(c.created_at)}</dd>
-            <dt>Last updated</dt><dd>${fmtDateTime(c.updated_at)} <span class="muted">(${ago(c.updated_at)})</span></dd>
+            <dt>Updated</dt><dd>${ago(c.updated_at)}</dd>
           </dl>
         </div>
-        <div class="card">
-          <div class="card-head"><h2>Stage history</h2></div>
-          <div class="card-body"><div class="timeline">${[...c.stage_history].reverse().map((h, i, arr) => {
+        <div class="section">
+          <div class="section-head"><h2>Stage history</h2></div>
+          <div class="timeline">${[...c.stage_history].reverse().map((h, i, arr) => {
             const next = i > 0 ? arr[i - 1].changed_at : null;
             const days = Math.max(0, Math.round(((next ? new Date(next) : new Date()) - new Date(h.changed_at)) / 86400000));
-            return html`<div class="tl-item" style="--c:${c.color}"><div class="what"><b>${h.to_stage}</b> <span class="muted">· ${days} day${days === 1 ? '' : 's'}${i === 0 ? ' so far' : ''}</span></div><div class="when">${fmtDateTime(h.changed_at)}</div></div>`;
-          })}</div></div>
+            return html`<div class="tl-item" style="--c:${i === 0 ? 'var(--ink)' : 'var(--ink-3)'}"><div class="what">${h.to_stage} <span class="muted">· ${days} day${days === 1 ? '' : 's'}${i === 0 ? ' so far' : ''}</span></div><div class="when">${fmtDate(h.changed_at)}</div></div>`;
+          })}</div>
         </div>
-        <div class="card">
-          <div class="card-head"><h2>Recent meetings</h2><a class="btn sm ghost" href="#/company/${c.id}/meetings">All →</a></div>
-          <div class="card-body">${c.meetings.length ? html`<div class="list">${c.meetings.slice(0, 4).map((m) => html`
-            <div class="list-item" style="cursor:pointer" data-m="${m.id}">${dateBlock(m.starts_at)}<span class="grow"><span class="title">${m.title}</span><span class="meta">${m.meeting_type || ''} · ${ago(m.starts_at)}</span></span></div>`)}</div>` : html`<p class="muted">No meetings yet.</p>`}</div>
+        <div class="section">
+          <div class="section-head"><h2>Recent meetings</h2><a class="aside link" href="#/company/${c.id}/meetings">All</a></div>
+          ${c.meetings.length ? html`<div class="list">${c.meetings.slice(0, 4).map((m) => html`
+            <div class="list-item" data-m="${m.id}">${dateBlock(m.starts_at)}<span class="grow"><span class="title">${m.title}</span><span class="meta">${m.meeting_type || ''} · ${ago(m.starts_at)}</span></span></div>`)}</div>` : html`<p class="muted">No meetings yet.</p>`}
         </div>
-        <button class="btn danger" id="del" style="align-self:flex-start">${ICONS.trash} Delete company</button>
+        <div class="section"><button class="btn ghost danger" id="del">${ic('trash')}Delete company</button></div>
       </div>
     </div>`);
   renderSeriesChart($('#fin', el), kf.series, kf.currency || c.currency);
@@ -185,7 +183,7 @@ function overview(el, c, reload) {
     if (m) meetingView(+m.dataset.m, { onChange: () => reload() });
   });
   $('#del', el).addEventListener('click', async () => {
-    if (!(await confirmDialog(`Delete ${c.name}? Its documents, models and history will be removed. Meetings and contacts are kept.`))) return;
+    if (!(await confirmDialog(`Delete ${c.name}? Its documents, models and history are removed. Meetings and contacts are kept.`))) return;
     await api.del(`/api/companies/${c.id}`);
     toast(`${c.name} deleted`);
     location.hash = '#/companies';
@@ -244,15 +242,16 @@ function docRow(d, extra = '') {
 function docsTab(el, c, reload, { docs }) {
   el.innerHTML = String(html`
     <div class="grid grid-dash">
-      <div class="card"><div class="card-head"><h2>Documents</h2><button class="btn sm" id="up">${ICONS.upload} Upload</button></div>
-        <div class="card-body">${docs.length ? docs.map((d) => docRow(d, d.analysis && d.analysis.facts ? html`<div class="outputs"><span class="out">${d.analysis.facts.length} facts detected</span>${d.analysis.ai ? html`<span class="out"><span class="badge-src claude">Claude</span> analysed</span>` : ''}${(d.analysis.stats || {}).pages ? html`<span class="out">${d.analysis.stats.pages} pages</span>` : ''}</div>` : '')) : html`<div class="dropzone" id="drop-empty">${ICONS.upload}<b>Drop a CIM here</b><br>Key facts are detected with page references for you to review.</div>`}</div>
-      </div>
-      <div class="card card-pad">
-        <h2 style="margin-bottom:8px">How fact detection works</h2>
-        <p class="t2">The built-in engine reads the CIM locally and looks for revenue, EBITDA, margins, growth, recurring revenue, retention, customers & concentration, headcount, HQ, founding year, CEO, ownership, advisor, process deadlines and financial tables.</p>
-        <p class="t2">Every fact shows the sentence and page it came from, plus a confidence score. You choose what to apply.</p>
-        <p class="t2">${store.meta.ai_enabled ? html`<b>Claude is enabled</b> — use “Analyze with Claude” in the review window for a deeper read, highlights, risks and a summary.` : html`Optional: add an Anthropic API key in <a href="#/settings">Settings</a> to let Claude read CIMs too (including scanned PDFs).`}</p>
-      </div>
+      <section>
+        <div class="section-head"><h2>Documents</h2><button class="btn sm" id="up">${ic('upload')}Upload</button></div>
+        <div class="doc-list">${docs.length ? docs.map((d) => docRow(d, d.analysis && d.analysis.facts ? html`<div class="outputs"><span class="out">${d.analysis.facts.length} facts found</span>${d.analysis.ai ? html`<span class="out"><span class="badge-src claude">Claude</span> read it</span>` : ''}${(d.analysis.stats || {}).pages ? html`<span class="out">${d.analysis.stats.pages} pages</span>` : ''}</div>` : '')) : html`<div class="dropzone" id="drop-empty">${ic('upload')}<b>Drop a CIM here</b><br>Key facts are found with page references, for you to review.</div>`}</div>
+      </section>
+      <aside class="aside-notes">
+        <h3>How fact detection works</h3>
+        <p>The CIM is read on this computer. Revenue, EBITDA, margins, growth, recurring revenue, retention, customer concentration, headcount, HQ, founding year, CEO, ownership, advisor, deadlines and financial tables are picked out.</p>
+        <p>Every fact shows the sentence and page it came from, with a confidence score. Nothing is applied until you choose it.</p>
+        <p>${store.meta.ai_enabled ? html`Claude is enabled. Use “Analyze with Claude” in the review window for highlights, risks and a summary.` : html`Add an Anthropic API key in <a class="link" href="#/settings">Settings</a> to let Claude read CIMs too, including scanned PDFs.`}</p>
+      </aside>
     </div>`);
   const up = $('#up', el);
   up && up.addEventListener('click', () => uploadDialog(c, reload, 'cim'));
@@ -293,34 +292,34 @@ function modelsTab(el, c, reload, { models }) {
   const prevOut = new Map(((prev && prev.analysis && prev.analysis.outputs) || []).map((o) => [o.key, o]));
   el.innerHTML = String(html`
     <div class="grid grid-dash">
-      <div class="card">
-        <div class="card-head"><h2>Model versions</h2><button class="btn sm primary" id="up">${ICONS.upload} Upload new version</button></div>
-        <div class="card-body">
+      <section>
+        <div class="section-head"><h2>Model versions</h2><button class="btn sm" id="up">${ic('upload')}Upload new version</button></div>
+        <div class="doc-list">
           ${models.length ? models.map((d, i) => {
             const a = d.analysis || {};
             const nextOlder = models[i + 1];
             const olderOut = new Map(((nextOlder && nextOlder.analysis && nextOlder.analysis.outputs) || []).map((o) => [o.key, o]));
             return docRow(d, html`
-              <div class="row" style="margin-top:4px;gap:6px"><span class="version">v${d.version}</span>${i === 0 ? html`<span class="chip pos">Latest</span>` : ''}<button class="btn sm ghost" data-label="${d.id}" style="padding:2px 6px">${ICONS.edit} ${d.label ? 'Rename' : 'Add label'}</button></div>
+              <div class="row" style="margin-top:4px;gap:6px"><span class="version">v${d.version}</span>${i === 0 ? html`<span class="muted" style="font-size:12px">Latest</span>` : ''}<button class="btn sm ghost" data-label="${d.id}" style="padding:2px 6px">${ic('edit')}${d.label ? 'Rename' : 'Add label'}</button></div>
               ${a.outputs && a.outputs.length ? html`<div class="outputs">${a.outputs.map((o) => {
                 const old = olderOut.get(o.key);
                 const delta = old && typeof o.value === 'number' && typeof old.value === 'number' ? o.value - old.value : null;
-                return html`<span class="out" title="${o.sheet}!row ${o.row} · “${o.cell_label}”">${o.label} <b>${o.display}</b>${delta ? html` <span class="delta" title="vs v${nextOlder.version}: ${old.display}">${delta > 0 ? '▲' : '▼'}</span>` : ''}</span>`;
+                return html`<span class="out" title="${o.sheet}!row ${o.row} · “${o.cell_label}”">${o.label} <b>${o.display}</b>${delta ? html` <span class="delta" title="vs v${nextOlder.version}: ${old.display}">${ic(delta > 0 ? 'arrowUp' : 'arrowDown', 'sm')}</span>` : ''}</span>`;
               })}</div>` : a.note ? html`<div class="muted" style="font-size:12px;margin-top:4px">${a.note}</div>` : ''}
               ${a.sheets ? html`<div class="muted" style="font-size:12px;margin-top:4px">Sheets: ${a.sheets.map((s) => s.name).join(', ')}</div>` : ''}`);
-          }) : html`<div class="dropzone" id="drop-empty">${ICONS.upload}<b>Drop your LBO / operating model</b><br>.xlsx, .xlsm, .xls, .csv — each upload becomes a new version with a timestamp.</div>`}
+          }) : html`<div class="dropzone" id="drop-empty">${ic('upload')}<b>Drop your LBO or operating model</b><br>.xlsx, .xlsm, .xls or .csv. Each upload becomes a new, time-stamped version.</div>`}
         </div>
-      </div>
-      <div class="stack">
+      </section>
+      <div class="stack" style="gap:36px">
         ${latest && latest.analysis && latest.analysis.outputs && latest.analysis.outputs.length ? html`
-          <div class="card"><div class="card-head"><h2>Latest returns snapshot</h2><span class="version">v${latest.version}</span></div>
-            <div class="card-body"><div class="facts">${latest.analysis.outputs.map((o) => {
+          <section><div class="section-head"><h2>Returns snapshot</h2><span class="version">v${latest.version}</span></div>
+            <div class="facts">${latest.analysis.outputs.map((o) => {
               const p = prevOut.get(o.key);
               return html`<div class="fact"><small class="muted"><span>${o.label}</span>${p ? html`<span>v${prev.version}: ${p.display}</span>` : ''}</small><b>${o.display}</b></div>`;
-            })}</div></div></div>` : ''}
-        <div class="card card-pad"><h2 style="margin-bottom:8px">Tips</h2>
-          <p class="t2">Outputs are found by scanning for labels such as <b>IRR</b>, <b>MOIC</b>, <b>Entry EV</b>, <b>Entry / Exit multiple</b>, <b>Leverage</b> and <b>Equity</b>, and reading the first number to the right.</p>
-          <p class="t2">Save the workbook in Excel before uploading so calculated values are stored in the file.</p></div>
+            })}</div></section>` : ''}
+        <aside class="aside-notes"><h3>How outputs are read</h3>
+          <p>The workbook is scanned for labels such as IRR, MOIC, Entry EV, entry and exit multiples, leverage and equity, and the first number to the right is taken.</p>
+          <p>Save the workbook in Excel before uploading so calculated values are stored in the file.</p></aside>
       </div>
     </div>`);
   $('#up', el).addEventListener('click', () => uploadDialog(c, reload, 'model'));
@@ -335,16 +334,16 @@ function modelsTab(el, c, reload, { models }) {
 // ------------------------------------------------------------------ meetings
 function meetingsTab(el, c, reload) {
   el.innerHTML = String(html`
-    <div class="row" style="margin-bottom:12px"><h2 style="flex:1">${c.meetings.length} meeting${c.meetings.length === 1 ? '' : 's'}</h2><button class="btn primary" id="add">${ICONS.plus} Log meeting</button></div>
-    ${c.meetings.length ? c.meetings.map((m) => html`
-      <div class="card m-card" data-m="${m.id}">
+    <div class="section-head"><h2>${c.meetings.length} meeting${c.meetings.length === 1 ? '' : 's'}</h2><button class="btn sm" id="add">${ic('plus')}Log meeting</button></div>
+    ${c.meetings.length ? html`<div class="stagger">${c.meetings.map((m, i) => html`
+      <div class="m-card" data-m="${m.id}" style="--i:${i}">
         ${dateBlock(m.starts_at)}
         <div class="grow">
           <div class="title">${m.title}</div>
-          <div class="meta"><span>${fmtDateTime(m.starts_at)}</span><span class="chip">${m.meeting_type || 'Meeting'}</span>${sentimentChip(m.sentiment)}${m.attendees.length ? html`<span>· ${m.attendees.map((a) => a.name).join(', ')}</span>` : ''}</div>
+          <div class="meta-line"><span>${new Date(m.starts_at).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' })}</span><span>${m.meeting_type || 'Meeting'}</span>${m.attendees.length ? html`<span>${m.attendees.map((a) => a.name).join(', ')}</span>` : ''}${m.sentiment ? html`<span>${sentimentChip(m.sentiment)}</span>` : ''}</div>
           ${m.takeaways || m.notes ? html`<div class="excerpt">${m.takeaways || m.notes}</div>` : ''}
         </div>
-      </div>`) : html`<div class="card empty"><h3>No meetings yet</h3><p>Log management presentations, banker calls, expert calls and site visits.</p></div>`}`);
+      </div>`)}</div>` : html`<div class="empty">${ic('meetings')}<h3>No meetings yet</h3><p>Log management presentations, banker calls, expert calls and site visits.</p></div>`}`);
   $('#add', el).addEventListener('click', async () => { if (await meetingForm(null, { companyId: c.id })) reload('meetings'); });
   el.addEventListener('click', (e) => {
     const m = e.target.closest('[data-m]');
@@ -355,22 +354,22 @@ function meetingsTab(el, c, reload) {
 // ------------------------------------------------------------------ people
 async function peopleTab(el, c, reload) {
   el.innerHTML = String(html`
-    <div class="grid grid-2">
-      <div class="card">
-        <div class="card-head"><h2>People on this deal</h2>
-          <div class="btn-row"><button class="btn sm" id="link">${ICONS.link} Link existing</button><button class="btn sm primary" id="add">${ICONS.plus} New contact</button></div></div>
-        <div class="card-body">${c.contacts.length ? html`<div class="list">${c.contacts.map((p) => html`
+    <div class="grid grid-2" style="gap:40px">
+      <section>
+        <div class="section-head"><h2>People on this deal</h2>
+          <div class="btn-row"><button class="btn sm ghost" id="link">${ic('link')}Link existing</button><button class="btn sm" id="add">${ic('userPlus')}New contact</button></div></div>
+        <div>${c.contacts.length ? html`<div class="list">${c.contacts.map((p) => html`
           <div class="list-item" style="cursor:pointer" data-p="${p.id}">
             ${avatar(p)}
-            <span class="grow"><span class="title">${p.name}</span><span class="meta">${[p.title, p.organization].filter(Boolean).join(' · ')}${p.deal_role ? ` — ${p.deal_role}` : p.is_employee ? ' — Management' : ''}</span></span>
+            <span class="grow"><span class="title">${p.name}</span><span class="meta">${[p.title, p.organization, p.deal_role || (p.is_employee ? 'Management' : '')].filter(Boolean).join(' · ')}</span></span>
             ${strength(p.strength)}
-            <button class="icon-btn" data-unlink="${p.id}" title="Remove from deal">${ICONS.close}</button>
-          </div>`)}</div>` : html`<p class="muted">Add management, bankers, experts and co-investors involved in this deal.</p>`}</div>
-      </div>
-      <div class="card">
-        <div class="card-head"><h2>Relationship map</h2><a class="btn sm ghost" href="#/network">Full network →</a></div>
-        <div class="card-body"><div class="graph-wrap small card" id="ego"></div></div>
-      </div>
+            <button class="icon-btn" data-unlink="${p.id}" title="Remove from deal">${ic('close')}</button>
+          </div>`)}</div>` : html`<p class="muted">Add the management, bankers, experts and co-investors involved in this deal.</p>`}</div>
+      </section>
+      <section>
+        <div class="section-head"><h2>Relationship map</h2><a class="btn sm ghost" href="#/network">Full network ${ic('arrowRight')}</a></div>
+        <div class="graph-wrap small" id="ego"></div>
+      </section>
     </div>`);
   $('#add', el).addEventListener('click', async () => { if (await contactForm(null, { companyId: c.id })) reload('people'); });
   $('#link', el).addEventListener('click', async () => {
@@ -378,7 +377,7 @@ async function peopleTab(el, c, reload) {
     const avail = all.filter((p) => !c.contacts.some((x) => x.id === p.id));
     modal({
       title: 'Link existing contact', size: 'narrow',
-      body: html`<form class="stack" id="lk"><div class="field"><label>Contact</label><select name="contact_id">${options(avail.map((p) => ({ value: p.id, label: `${p.name}${p.organization ? ' — ' + p.organization : ''}` })), '', { blank: 'Choose…' })}</select></div>
+      body: html`<form class="stack" id="lk"><div class="field"><label>Contact</label><select name="contact_id">${options(avail.map((p) => ({ value: p.id, label: `${p.name}${p.organization ? ', ' + p.organization : ''}` })), '', { blank: 'Choose…' })}</select></div>
         <div class="field"><label>Role on this deal</label><input type="text" name="role" placeholder="e.g. Sell-side banker, Expert, Lender"></div></form>`,
       foot: html`<button class="btn" data-close>Cancel</button><button class="btn primary" id="lk-save">Link</button>`,
       onMount(m, close) {
@@ -404,25 +403,26 @@ async function peopleTab(el, c, reload) {
 
 // ------------------------------------------------------------------ timeline
 function timeline(el, c) {
-  el.innerHTML = String(html`<div class="card card-pad" style="max-width:820px">
-    <h2 style="margin-bottom:14px">Everything that happened on ${c.name}</h2>
+  el.innerHTML = String(html`<div style="max-width:720px">
+    <div class="section-head"><h2>Everything that happened on ${c.name}</h2><span class="aside">${c.activity.length} entries</span></div>
     <div class="timeline">${c.activity.map((a) => html`
-      <div class="tl-item" style="--c:${a.action === 'stage' ? c.color : 'var(--text-3)'}">
-        <div class="what">${a.action === 'stage' ? html`<b>Stage:</b> ` : ''}${a.summary}</div>
+      <div class="tl-item" style="--c:${a.action === 'stage' ? 'var(--ink)' : 'var(--ink-3)'}">
+        <div class="what">${a.action === 'stage' ? html`<b>Stage</b> ` : ''}${a.summary.replace(' → ', ' to ')}</div>
         <div class="when">${fmtDateTime(a.created_at)} · ${ago(a.created_at)}</div>
       </div>`)}</div></div>`);
 }
 
 // ------------------------------------------------------------------ one-pager
 function renderOnePager(view, c) {
+  setCrumbs([{ label: 'Companies', href: '#/companies' }, { label: c.name, href: `#/company/${c.id}` }, { label: 'One-pager' }]);
   const kf = c.key_facts || {};
   const facts = (kf.facts || []).filter((f) => !['name', 'codename', 'description', 'sector', 'region', 'country', 'hq', 'revenue', 'ebitda', 'ebitda_margin_calc', 'website'].includes(f.key)).slice(0, 10);
   const takeaways = c.meetings.filter((m) => m.takeaways || m.notes).slice(0, 3);
   const firm = store.meta.settings.firm_name;
   view.innerHTML = String(html`
     <div class="print-bar">
-      <a class="btn" href="#/company/${c.id}">‹ Back to ${c.name}</a>
-      <div class="btn-row"><span class="muted" style="font-size:13px">Generated from everything captured on this deal.</span><button class="btn primary" id="print">Print / Save as PDF</button></div>
+      <span class="muted" style="font-size:13px">Generated from everything captured on this deal.</span>
+      <div class="btn-row"><a class="btn ghost" href="#/company/${c.id}">${ic('back')}Back to ${c.name}</a><button class="btn primary" id="print">${ic('printer')}Save as PDF</button></div>
     </div>
     <div class="card onepager" style="--c:${c.color}">
       <div class="op-head">

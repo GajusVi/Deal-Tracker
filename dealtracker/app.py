@@ -345,6 +345,28 @@ def create_app(data_dir=None):
         db.commit()
         return jsonify(_get_company(cid))
 
+    @app.post("/api/companies/<int:cid>/undo-stage")
+    def undo_stage(cid):
+        """Revert the most recent stage move, as if it never happened (backs the Undo toast)."""
+        db = get_db()
+        c = row(db.execute("SELECT * FROM companies WHERE id = ?", (cid,)))
+        if not c:
+            abort(404, "Company not found")
+        last = row(db.execute("SELECT * FROM stage_history WHERE company_id = ? ORDER BY changed_at DESC, id DESC LIMIT 1", (cid,)))
+        if not last or last["to_stage"] != c["stage"] or not last["from_stage"]:
+            return _err("Nothing to undo")
+        prev = row(db.execute("SELECT changed_at FROM stage_history WHERE company_id = ? AND id != ? ORDER BY changed_at DESC, id DESC LIMIT 1",
+                              (cid, last["id"])))
+        body = request.get_json(silent=True) or {}
+        fields = {"stage": last["from_stage"], "stage_changed_at": prev["changed_at"] if prev else c["created_at"]}
+        if body.get("status") in ("Active", "Passed", "On hold", "Closed"):
+            fields["status"] = body["status"]
+        db.execute("DELETE FROM stage_history WHERE id = ?", (last["id"],))
+        db.execute("DELETE FROM activity WHERE id = (SELECT id FROM activity WHERE company_id = ? AND action = 'stage' ORDER BY id DESC LIMIT 1)", (cid,))
+        db.execute(f"UPDATE companies SET {', '.join(f'{k} = ?' for k in fields)} WHERE id = ?", [*fields.values(), cid])
+        db.commit()
+        return jsonify(_get_company(cid))
+
     @app.delete("/api/companies/<int:cid>")
     def delete_company(cid):
         db = get_db()

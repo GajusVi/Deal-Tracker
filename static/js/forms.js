@@ -3,7 +3,7 @@ import { api, store, loadMeta } from './api.js';
 import {
   html, raw, $, $$, modal, formValues, options, toast, errToast, withBusy, dropzone, dominantColor,
   BRAND_SWATCHES, logo, money, ICONS, fmtDateTime, sentimentChip, avatar, strength, confirmDialog, toLocalInput,
-  initials, esc, debounce, fmtDate, ago,
+  initials, esc, debounce, fmtDate, ago, ic,
 } from './ui.js';
 import { columns } from './charts.js';
 
@@ -212,7 +212,7 @@ export async function contactView(id, { onChange } = {}) {
           <dl class="kv">
             <dt>Email</dt><dd>${c.email ? html`<a href="mailto:${c.email}">${c.email}</a>` : '—'}</dd>
             <dt>Phone</dt><dd>${c.phone || '—'}</dd>
-            <dt>LinkedIn</dt><dd>${c.linkedin ? html`<a href="${/^https?:/.test(c.linkedin) ? c.linkedin : 'https://' + c.linkedin}" target="_blank" rel="noopener">Profile ↗</a>` : '—'}</dd>
+            <dt>LinkedIn</dt><dd>${c.linkedin ? html`<a href="${/^https?:/.test(c.linkedin) ? c.linkedin : 'https://' + c.linkedin}" target="_blank" rel="noopener" class="link">Profile</a>` : '—'}</dd>
             <dt>Owner</dt><dd>${c.owner ? html`<a href="#/team/${encodeURIComponent(c.owner)}" data-close>${c.owner}</a>` : '—'}</dd>
             <dt>City</dt><dd>${c.city || '—'}</dd>
             <dt>Works at</dt><dd>${c.company_id ? html`<a href="#/company/${c.company_id}" data-close>${c.company_name}</a>` : c.organization || '—'}</dd>
@@ -363,8 +363,8 @@ export async function meetingView(id, { onChange } = {}) {
     body: html`
       <div class="chips" style="margin-bottom:14px">
         <span class="chip">${m.meeting_type || 'Meeting'}</span>
-        <span class="chip">🗓 ${fmtDateTime(m.starts_at)}${m.duration_min ? ` · ${m.duration_min} min` : ''}</span>
-        ${m.location ? html`<span class="chip">📍 ${m.location}</span>` : ''}
+        <span class="chip">${ic('calendarDays')}${fmtDateTime(m.starts_at)}${m.duration_min ? ` · ${m.duration_min} min` : ''}</span>
+        ${m.location ? html`<span class="chip">${ic('pin')}${m.location}</span>` : ''}
         ${m.company_id ? html`<a class="chip" href="#/company/${m.company_id}" data-close><span class="dot" style="background:${m.company_color}"></span>${m.company_name}</a>` : html`<span class="chip">Market / general</span>`}
         ${sentimentChip(m.sentiment)}
       </div>
@@ -415,7 +415,7 @@ function mergedFacts(analysis) {
 
 function highlightSnippet(snippet, f) {
   if (!snippet) return '';
-  const needle = String(f.display || '').split(' (')[0].replace(/[$€£]|m$|bn$|%$/g, '').replace(/,/g, ',').trim();
+  const needle = String(f.display || '').split(' (')[0].replace(/[$€£]/g, '').replace(/(\d)\s*(m|bn|%)$/, '$1').trim();
   const s = esc(snippet);
   if (!needle || needle.length < 2) return raw(s);
   const n = esc(needle).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -427,15 +427,15 @@ function confBar(c) {
   return html`<div class="conf"><span>${Math.round(c * 100)}%</span><span class="bar"><i class="${cls}" style="width:${c * 100}%"></i></span></div>`;
 }
 
-export function factsReviewHTML(analysis) {
+export function factsReviewHTML(analysis, { reveal = false } = {}) {
   const facts = mergedFacts(analysis);
   if (!facts.length) return html`<div class="empty">No facts detected. ${analysis.warning || ''}</div>`;
   return html`<div class="fr-list">${facts.map((f, i) => html`
-    <label class="fr">
+    <label class="fr ${reveal ? 'reveal' : ''}" style="--i:${i}">
       <input type="checkbox" data-fi="${i}" ${f._default ? 'checked' : ''}>
       <div><div class="lbl">${f.label}<span class="badge-src ${f.source}">${f.source === 'claude' ? 'Claude' : 'Auto'}</span></div>
-        ${FIELD_HINT[f.key] ? html`<small>→ updates ${FIELD_HINT[f.key]}</small>` : html`<small>key fact</small>`}</div>
-      <div><div class="val">${f.display}</div>${f.snippet && f.key !== 'description' ? html`<div class="src">“${highlightSnippet(f.snippet, f)}”${f.page ? html` — p.${f.page}` : ''}</div>` : f.page ? html`<div class="src">p.${f.page}</div>` : ''}</div>
+        ${FIELD_HINT[f.key] ? html`<small>Fills ${FIELD_HINT[f.key].toLowerCase()}</small>` : html`<small>key fact</small>`}</div>
+      <div><div class="val">${f.display}</div>${f.snippet && f.key !== 'description' ? html`<div class="src">“${highlightSnippet(f.snippet, f)}”${f.page ? html` <span class="pg">p.${f.page}</span>` : ''}</div>` : f.page ? html`<div class="src">p.${f.page}</div>` : ''}</div>
       ${confBar(f.confidence)}
     </label>`)}</div>`;
 }
@@ -468,7 +468,7 @@ export function renderSeriesChart(el, series, currency) {
   const years = Object.keys(series.revenue).sort();
   columns(el, {
     categories: years,
-    series: [{ key: 'revenue', label: 'Revenue', color: 'var(--series-1)' }, ...(series.ebitda ? [{ key: 'ebitda', label: 'EBITDA', color: 'var(--series-2)' }] : [])],
+    series: [{ key: 'revenue', label: 'Revenue', color: 'var(--bar)' }, ...(series.ebitda ? [{ key: 'ebitda', label: 'EBITDA', color: 'var(--accent)' }] : [])],
     rows: years.map((y) => ({ cat: y, label: series.revenue[y].projected ? `${y}E` : `${y}A`, revenue: series.revenue[y]?.value, ebitda: series.ebitda?.[y]?.value, projected: series.revenue[y].projected })),
     format: (v, axis) => (axis ? money(v, currency).replace(/\.0m$/, 'm') : money(v, currency)),
     isProjected: (r) => r.projected,
@@ -481,7 +481,7 @@ export async function reviewCim(doc, company, { onApplied } = {}) {
   let analysis = doc.analysis || {};
   const aiEnabled = store.meta.ai_enabled;
   const m = modal({
-    title: `Key facts — ${doc.filename}`, size: 'wide',
+    title: `Key facts from ${doc.filename}`, size: 'wide',
     body: html`<div id="rv"></div>`,
     foot: html`
       <button class="btn" id="rv-ai" ${aiEnabled ? '' : 'disabled'} title="${aiEnabled ? 'Have Claude read the full document' : 'Add an Anthropic API key in Settings to enable'}">${ICONS.spark} ${analysis.ai ? 'Re-run Claude analysis' : 'Analyze with Claude'}</button>
@@ -491,23 +491,23 @@ export async function reviewCim(doc, company, { onApplied } = {}) {
   const el = m.el;
   const render = () => {
     $('#rv', el).innerHTML = String(html`
-      ${analysis.warning ? html`<div class="summary-box" style="margin-bottom:12px">⚠ ${analysis.warning}</div>` : ''}
+      ${analysis.warning ? html`<div class="banner warn"><span class="ico">${ic('alert')}</span><div>${analysis.warning}</div></div>` : ''}
       <div class="fr-cols"><div>${factsReviewHTML(analysis)}</div><div class="stack">${analysisSideHTML(analysis)}</div></div>`);
     renderSeriesChart($('#fin-chart', el), analysis.series, analysis.currency);
   };
   render();
   $('#rv-ai', el).addEventListener('click', (e) => withBusy(e.currentTarget, async () => {
     try {
-      toast('Claude is reading the document… this can take a minute');
+      toast('Claude is reading the whole document. This can take a minute.', '', { icon: 'spark', ms: 4000 });
       const d = await api.post(`/api/documents/${doc.id}/reanalyze?engine=claude`);
-      analysis = d.analysis; render(); toast('Claude analysis added');
+      analysis = d.analysis; render(); toast('Claude’s reading added', '', { icon: 'check' });
     } catch (err) { errToast(err); }
   }));
   $('#rv-apply', el).addEventListener('click', (e) => withBusy(e.currentTarget, async () => {
     const facts = selectedFacts(el, analysis);
     try {
       const updated = await api.post(`/api/companies/${company.id}/apply-facts`, { facts, document_id: doc.id, only_empty: $('#rv-empty', el).checked });
-      toast(`${facts.length} fact(s) applied`); m.close(); onApplied && onApplied(updated);
+      toast(`${facts.length} fact${facts.length === 1 ? '' : 's'} added to ${company.name}`, '', { icon: 'check' }); m.close(); onApplied && onApplied(updated);
     } catch (err) { errToast(err); }
   }));
 }
@@ -517,42 +517,74 @@ export function cimWizard({ onCreated } = {}) {
   const m = modal({
     title: 'New company from CIM', size: 'wide',
     body: html`<div id="wz">
-      <div class="dropzone" id="wz-drop">${ICONS.upload}<b>Drop a CIM or teaser here</b><br>PDF, Word (.docx) or text · or click to browse
-        <p class="muted" style="margin:8px 0 0;font-size:12px">The document is read locally. Revenue, EBITDA, margins, HQ, headcount, customers, highlights and more are detected with page references so you can verify them.</p></div>
+      <div class="dropzone" id="wz-drop">${ic('scan')}<b>Drop a CIM or teaser</b><br>PDF, Word or text, or click to browse
+        <p class="muted" style="margin:10px auto 0;font-size:12px;max-width:46ch">Read on this computer. Revenue, EBITDA, margins, HQ, headcount, customers and highlights are found with page references, so you can check each one.</p></div>
     </div>`,
   });
   const el = m.el;
   dropzone($('#wz-drop', el), async ([file]) => {
-    $('#wz', el).innerHTML = String(html`<div class="empty"><span class="btn loading ghost">Reading ${file.name} and detecting key facts…</span></div>`);
+    $('#wz', el).innerHTML = String(html`<div class="reading">
+      <h3>Reading ${file.name}</h3>
+      <ol>${['Reading the document', 'Finding the financials', 'Detecting key facts', 'Checking your records'].map((t, i) => html`<li class="${i ? '' : 'active'}" data-step="${i}"><span class="st"></span><span class="t">${t}</span></li>`)}</ol>
+    </div>`);
     try {
       const doc = await api.upload('/api/cim/analyze', file);
-      step2(doc);
+      const a = doc.analysis || {};
+      const pick = (k) => mergedFacts(a).filter((f) => f.key === k).sort((x, y) => y.confidence - x.confidence)[0]?.value;
+      const names = [pick('name'), pick('codename')].filter(Boolean);
+      const prior = Promise.all(names.map((n) => api.get(`/api/companies/similar?name=${encodeURIComponent(n)}`).catch(() => [])))
+        .then((res) => [...new Map(res.flat().map((h) => [h.id, h])).values()]);
+      const years = Object.keys((a.series || {}).revenue || {}).length;
+      const facts = mergedFacts(a).filter((f) => f._default).length;
+      // Each line reports what the analysis actually found; nothing here is a fake delay.
+      const results = [
+        a.stats ? `Read ${a.stats.pages} page${a.stats.pages === 1 ? '' : 's'}, ${num0(a.stats.words)} words` : 'Read the document',
+        years ? `Found ${years} year${years === 1 ? '' : 's'} of revenue${(a.series || {}).ebitda ? ' and EBITDA' : ''}` : 'No financial table found',
+        `Detected ${facts} key fact${facts === 1 ? '' : 's'} with page references`,
+        null,
+      ];
+      const hits = await playSteps(el, results, prior);
+      step2(doc, hits);
     } catch (err) { errToast(err); m.close(); }
   }, { accept: '.pdf,.docx,.txt,.md' });
 
-  function step2(doc) {
+  async function playSteps(root, results, prior) {
+    const calm = matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const lis = $$('.reading li', root);
+    let hits = [];
+    for (let i = 0; i < lis.length; i++) {
+      lis[i].classList.add('active');
+      if (i === 3) {
+        hits = await prior;
+        results[3] = hits.length ? `Seen before: ${hits.map((h) => h.name).slice(0, 2).join(', ')}` : 'Not seen before in your records';
+      }
+      if (!calm) await new Promise((r) => setTimeout(r, 160));
+      lis[i].classList.replace('active', 'done');
+      lis[i].querySelector('.st').innerHTML = String(ic('check'));
+      lis[i].querySelector('.t').textContent = results[i];
+    }
+    if (!calm) await new Promise((r) => setTimeout(r, 260));
+    return hits;
+  }
+
+  function step2(doc, hits = []) {
     let analysis = doc.analysis || { facts: [] };
     const pick = (k) => mergedFacts(analysis).filter((f) => f.key === k).sort((a, b) => b.confidence - a.confidence)[0]?.value;
     const color = BRAND_SWATCHES[Math.floor(Math.random() * 8)];
     const render = () => {
       $('#wz', el).innerHTML = String(html`
         <div id="wz-prior" style="margin-bottom:16px" hidden></div>
-        ${analysis.warning ? html`<div class="summary-box" style="margin-bottom:12px">⚠ ${analysis.warning}</div>` : ''}
+        ${analysis.warning ? html`<div class="banner warn"><span class="ico">${ic('alert')}</span><div>${analysis.warning}</div></div>` : ''}
         <form class="form" id="wz-form" style="margin-bottom:16px">
           <div class="field"><label>Company name *</label><input type="text" name="name" value="${pick('name') || ''}" required></div>
           <div class="field"><label>Codename</label><input type="text" name="codename" value="${pick('codename') || ''}"></div>
           <div class="field"><label>Stage</label><select name="stage">${options(S().stages, S().stages.includes('CIM Review') ? 'CIM Review' : S().stages[0])}</select></div>
           <div class="field"><label>Brand colour</label><div class="swatches">${BRAND_SWATCHES.slice(0, 9).map((s) => html`<button type="button" class="swatch ${s === color ? 'on' : ''}" style="background:${s}" data-c="${s}"></button>`)}<input type="color" name="color" value="${color}"></div></div>
         </form>
-        <div class="fr-cols"><div><p class="t2" style="margin-bottom:8px">Tick the facts to keep — they fill the company profile and are saved as key facts.</p>${factsReviewHTML(analysis)}</div><div class="stack">${analysisSideHTML(analysis)}</div></div>`);
+        <div class="fr-cols"><div><p class="muted" style="margin-bottom:10px;font-size:13px">Keep the facts you trust. They fill the profile and are saved with their page references.</p>${factsReviewHTML(analysis, { reveal: true })}</div><div class="stack">${analysisSideHTML(analysis)}</div></div>`);
       renderSeriesChart($('#fin-chart', el), analysis.series, analysis.currency);
-      const names = [pick('name'), pick('codename')].filter(Boolean);
-      Promise.all(names.map((n) => api.get(`/api/companies/similar?name=${encodeURIComponent(n)}`).catch(() => []))).then((res) => {
-        const seen = new Map();
-        res.flat().forEach((h) => seen.set(h.id, h));
-        const box = $('#wz-prior', el);
-        if (box && seen.size) { box.hidden = false; box.innerHTML = String(priorLooksBanner([...seen.values()])); }
-      });
+      const box = $('#wz-prior', el);
+      if (box && hits.length) { box.hidden = false; box.innerHTML = String(priorLooksBanner(hits)); }
       $('.swatches', el).addEventListener('click', (e) => {
         const s = e.target.closest('.swatch');
         if (!s) return;
@@ -569,9 +601,9 @@ export function cimWizard({ onCreated } = {}) {
     el.appendChild(foot);
     $('#wz-ai', el).addEventListener('click', (e) => withBusy(e.currentTarget, async () => {
       try {
-        toast('Claude is reading the document… this can take a minute');
+        toast('Claude is reading the whole document. This can take a minute.', '', { icon: 'spark', ms: 4000 });
         const d = await api.post(`/api/documents/${doc.id}/reanalyze?engine=claude`);
-        analysis = d.analysis; render(); toast('Claude analysis added');
+        analysis = d.analysis; render(); toast('Claude’s reading added', '', { icon: 'check' });
       } catch (err) { errToast(err); }
     }));
     $('#wz-create', el).addEventListener('click', (e) => withBusy(e.currentTarget, async () => {
@@ -580,7 +612,7 @@ export function cimWizard({ onCreated } = {}) {
       const facts = selectedFacts(el, analysis);
       try {
         const created = await api.post('/api/companies', { ...v, cim_document_id: doc.id, accepted_facts: facts });
-        toast(`${created.name} created from CIM`); m.close();
+        toast(`${created.name} added from its CIM`, '', { icon: 'check' }); m.close();
         offerDemoCleanup();
         onCreated ? onCreated(created) : (location.hash = `#/company/${created.id}`);
       } catch (err) { errToast(err); }
@@ -595,7 +627,7 @@ export { initials };
 export function priorLooksBanner(hits) {
   if (!hits || !hits.length) return '';
   return html`<div class="banner" style="margin:0">
-    <span class="ico">↺</span>
+    <span class="ico">${ic('history')}</span>
     <div style="flex:1;min-width:0"><b>You've looked at this before.</b>
       ${hits.slice(0, 3).map((h) => html`<p><a href="#/company/${h.id}" data-close>${h.name}</a>${h.codename ? ` (${h.codename})` : ''} — ${h.pass_reason ? html`passed: <b>${h.pass_reason}</b>` : h.stage}${h.deal_lead ? ` · lead ${h.deal_lead}` : ''} · first seen ${fmtDate(h.created_at)}${h.last_meeting ? ` · last met ${ago(h.last_meeting)}` : ''}${h.pass_notes ? html`<br><span class="muted">“${h.pass_notes}”</span>` : ''}</p>`)}
     </div></div>`;
@@ -623,8 +655,11 @@ export function passDialog(company) {
 }
 
 // Move a company to a stage; passing asks for the decision record first.
-export async function moveStage(company, stage) {
+// Moves are instant and reversible: the toast offers Undo instead of asking "are you sure?".
+// Undo removes the move from history entirely, so a slip leaves no trace in the record.
+export async function moveStage(company, stage, { onUndo } = {}) {
   const body = { stage };
+  const before = { stage: company.stage, status: company.status || 'Active' };
   if (stage === 'Passed') {
     const why = await passDialog(company);
     if (!why) return null;
@@ -633,8 +668,44 @@ export async function moveStage(company, stage) {
     body.status = 'Active';
   }
   const updated = await api.patch(`/api/companies/${company.id}`, body);
-  toast(`${company.name} → ${stage}`);
+  toast(html`<b>${company.name}</b> moved to ${stage}`, '', {
+    icon: 'check',
+    action: 'Undo',
+    onAction: async () => {
+      try {
+        await api.post(`/api/companies/${company.id}/undo-stage`, { status: before.status });
+        toast(html`<b>${company.name}</b> is back in ${before.stage}`, '', { icon: 'undo' });
+        onUndo && onUndo();
+      } catch (err) { errToast(err); }
+    },
+  });
+  if (stage === 'Closed') closedMoment(updated);
   return updated;
+}
+
+// The peak-end moment: closing a deal is rare and earned, so mark it once, quietly,
+// with the facts of the journey rather than confetti.
+function closedMoment(c) {
+  const first = c.stage_history?.[0]?.changed_at || c.created_at;
+  const days = Math.max(1, Math.round((Date.now() - new Date(first)) / 864e5));
+  const people = new Set([...(c.contacts || []).map((x) => x.id), ...(c.meetings || []).flatMap((m) => (m.attendees || []).map((a) => a.id ?? a))]).size;
+  const m = modal({
+    title: '',
+    size: 'narrow',
+    body: html`<div class="moment">
+      <div class="seal">${ic('award')}</div>
+      <h2>${c.name} is closed</h2>
+      <p>${c.deal_lead ? `${c.deal_lead} and the team` : 'The team'} took it from first look to signing.</p>
+      <div class="facts-row">
+        <div><b>${days}</b><small class="muted">days since first look</small></div>
+        <div><b>${(c.meetings || []).length}</b><small class="muted">meetings held</small></div>
+        <div><b>${people}</b><small class="muted">people involved</small></div>
+      </div>
+      <p class="muted" style="font-size:13px">Everything on this deal stays on record for the next one.</p>
+    </div>`,
+    foot: html`<a class="btn" href="#/company/${c.id}/onepager">${ic('file')}One-pager</a><button class="btn primary" data-close>Done</button>`,
+  });
+  return m;
 }
 
 // ======================================================================= sample data

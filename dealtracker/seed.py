@@ -1,7 +1,6 @@
 """Demo workspace so the app has something to show on first launch."""
 import json
 import os
-import uuid
 from datetime import datetime, timedelta, timezone
 
 from . import db as dbm
@@ -106,23 +105,6 @@ MEETINGS = [
     ("Mercato intro meeting", "Management Presentation", 5, 10, 60, "Bologna", "", "", "", None, [12, 10]),
 ]
 
-SHAPES = {
-    "hex": '<polygon points="32,6 54,19 54,45 32,58 10,45 10,19" fill="{c}"/>',
-    "circle": '<circle cx="32" cy="32" r="26" fill="{c}"/>',
-    "diamond": '<rect x="13" y="13" width="38" height="38" rx="8" transform="rotate(45 32 32)" fill="{c}"/>',
-}
-
-
-def _logo_svg(name, color, shape):
-    initials = "".join(w[0] for w in name.split()[:2]).upper()
-    return (
-        '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64">'
-        + SHAPES[shape].format(c=color)
-        + f'<text x="32" y="38" text-anchor="middle" font-family="Helvetica,Arial,sans-serif" '
-        f'font-size="17" font-weight="700" fill="#fff">{initials}</text></svg>'
-    )
-
-
 def seed_demo(db):
     """Load the sample workspace; every row it creates is tagged is_demo = 1."""
     before = {t: db.execute(f"SELECT COALESCE(MAX(id), 0) FROM {t}").fetchone()[0] for t in dbm.DEMO_TABLES}
@@ -172,15 +154,11 @@ def clear_demo(db):
 def _seed(db):
     now = datetime.now(timezone.utc).replace(microsecond=0)
     stages = dbm.get_settings(db)["stages"]
-    logo_dir = os.path.join(dbm.data_dir(), "uploads", "logos")
-    os.makedirs(logo_dir, exist_ok=True)
 
     company_ids = []
     for i, (name, code, color, sector, country, city, stage, prio, dtype, ev, rev, ebitda, emp, founded, adv, desc, shape) in enumerate(COMPANIES):
         created = now - timedelta(days=120 - i * 11)
-        logo = f"{uuid.uuid4().hex}.svg"
-        with open(os.path.join(logo_dir, logo), "w") as fh:
-            fh.write(_logo_svg(name, color, shape))
+        logo = None  # sample companies use the app's own monograms rather than generated logos
         stage_idx = stages.index(stage) if stage in stages else 0
         changed = min(created + timedelta(days=stage_idx * 9), now - timedelta(days=2 + i))
         step = (changed - created) / max(stage_idx, 1)

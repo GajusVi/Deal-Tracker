@@ -10,9 +10,9 @@ export function hbars(el, items, { format = (v) => v, empty = 'No data yet', max
   const top = max ?? Math.max(...items.map((i) => i.value || 0), 1);
   el.innerHTML = String(html`<div class="hbars">${items.map((it, idx) => html`
     <div class="hbar" data-i="${idx}" ${it.href ? html`style="cursor:pointer"` : ''}>
-      <span class="lbl" title="${it.label}">${it.label}</span>
+      <span class="lbl" title="${it.label}">${it.label}${it.sub ? html`<small class="muted" style="display:block;font-size:11.5px">${it.sub}</small>` : ''}</span>
       <span class="track"><span class="fill" style="width:${Math.max(0.5, ((it.value || 0) / top) * 100)}%"></span></span>
-      <span class="val">${format(it.value)}${it.sub ? html`<small class="muted">${it.sub}</small>` : ''}</span>
+      <span class="val">${format(it.value)}</span>
     </div>`)}</div>`);
   el.querySelectorAll('.hbar').forEach((row) => {
     const it = items[+row.dataset.i];
@@ -29,7 +29,8 @@ export function columns(el, { categories, series, rows, height = 220, format = (
   const m = { t: 18, r: 8, b: 26, l: 44 };
   const iw = W - m.l - m.r, ih = H - m.t - m.b;
   const maxV = Math.max(1, ...rows.flatMap((r) => series.map((s) => r[s.key] || 0)));
-  const ticks = niceTicks(maxV);
+  const integer = rows.every((r) => series.every((s) => Number.isInteger(r[s.key] || 0)));
+  const ticks = niceTicks(maxV, 4, integer);
   const top = ticks[ticks.length - 1];
   const band = iw / categories.length;
   const gap = 2;
@@ -68,7 +69,7 @@ export function columns(el, { categories, series, rows, height = 220, format = (
   });
   svg.push('</svg>');
   const legend = series.length > 1 || isProjected
-    ? `<div class="legend" style="margin-top:6px">${series.map((s) => `<span><i style="background:${s.color}"></i>${esc(s.label)}</span>`).join('')}${isProjected && rows.some(isProjected) ? '<span><i style="background:repeating-linear-gradient(45deg,var(--text-3) 0 2px,transparent 2px 4px);border:1px solid var(--text-3)"></i>Projected</span>' : ''}</div>`
+    ? `<div class="legend" style="margin-top:6px">${series.map((s) => `<span><i style="background:${s.color}"></i>${esc(s.label)}</span>`).join('')}${isProjected && rows.some(isProjected) ? '<span><i style="background:repeating-linear-gradient(45deg,var(--ink-3) 0 2px,transparent 2px 4px);border:1px solid var(--ink-3)"></i>Projected</span>' : ''}</div>`
     : '';
   el.innerHTML = svg.join('') + legend;
   el.querySelectorAll('.col-group').forEach((g) => {
@@ -80,10 +81,11 @@ export function columns(el, { categories, series, rows, height = 220, format = (
   });
 }
 
-function niceTicks(max, count = 4) {
+function niceTicks(max, count = 4, integer = false) {
   const raw = max / count;
   const mag = 10 ** Math.floor(Math.log10(raw));
-  const step = [1, 2, 2.5, 5, 10].map((s) => s * mag).find((s) => s >= raw) || raw;
+  let step = [1, 2, 2.5, 5, 10].map((s) => s * mag).find((s) => s >= raw) || raw;
+  if (integer) step = Math.max(1, Math.ceil(step));
   const out = [];
   for (let v = 0; v <= max + step * 0.001; v += step) out.push(+v.toFixed(6));
   if (out[out.length - 1] < max) out.push(+(out[out.length - 1] + step).toFixed(6));

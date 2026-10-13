@@ -10,13 +10,13 @@ A private, local deal-tracking app for private equity that keeps your firm's dea
 |---|---|
 | **Dashboard** | Live deals, pipeline EV, EBITDA and blended multiple, deals by stage, sector and region, 12-month activity, next steps (overdue ones flagged), upcoming meetings, a recent-activity feed and brand-coloured company cards. |
 | **Companies** | Add a company in seconds with a logo, brand colour (it can pick the colour from the logo), sector, geography, stage, priority, deal type, EV, revenue, EBITDA, advisor and next step. Switch between card and table views, filter, sort and export to CSV. |
-| **Pipeline** | A Kanban board. Drag a deal to another stage. Each move is time-stamped, and every company shows its stage history and days in stage. |
+| **Pipeline** | A Kanban board. Drag a deal to another stage; it moves instantly and can be undone from the confirmation. Each move is time-stamped, and every company shows its stage history and days in stage. Closing a deal shows a short summary of the journey: days since first look, meetings held and people involved. |
 | **CIM fact detection** | Drop in a CIM (PDF, DOCX or TXT). The app detects revenue and EBITDA (from text and from financial tables), margins, CAGR, recurring revenue, retention, customers and concentration, headcount, HQ, founding year, CEO, ownership, sell-side advisor, transaction type, bid deadline, website, sector, geographies, investment highlights and risks. **Each fact shows the source sentence, page number and a confidence score.** You tick the facts to keep. You can also create a new company straight from a CIM. |
 | **Claude analysis (optional)** | Add an Anthropic API key and click **Analyze with Claude** to have Claude read the whole document, including scanned PDFs. It adds facts with quotes, plus highlights, diligence questions and a summary. |
 | **Models** | Upload LBO or operating models. Every upload becomes a new version (v1, v2…) with a timestamp. IRR, MOIC, entry and exit multiples, entry and exit EV, leverage, equity and hold period are read from the workbook and compared with the previous version. |
 | **Meetings & market notes** | Log management presentations, banker calls, expert calls, site visits, IC meetings and general market meetings that aren't tied to a company. Each meeting has attendees, notes, takeaways, next steps and sentiment. All of it is searchable. |
 | **Contacts & network diagram** | Track bankers, management, experts, co-investors and lenders, with relationship strength and meeting history. Map relationships such as "former colleague", "reports to" or "introduced". An interactive network diagram (drag, zoom, hover to trace connections) shows who connects to which deal. |
-| **Everything else** | Global search (Ctrl/⌘ K) across companies, people, meeting notes and CIM text. A timeline for each company. Light and dark mode. Settings for stages, sectors, deal types and meeting types. JSON backup. |
+| **Everything else** | A command palette (Ctrl/⌘ K) that searches companies, people, meeting notes and CIM text and runs actions. Keyboard shortcuts for everything common (press `?` to see them). A timeline for each company. Light and dark mode. Settings for stages, sectors, deal types and meeting types. JSON backup. |
 
 | Company page | CIM fact review |
 |---|---|
@@ -25,6 +25,8 @@ A private, local deal-tracking app for private equity that keeps your firm's dea
 | ![Pipeline](docs/pipeline.png) | ![Network](docs/network.png) |
 | **Handover pack** | **IC one-pager** |
 | ![Handover](docs/handover.png) | ![One-pager](docs/onepager.png) |
+
+The research and principles behind the interface (type, colour, motion and behaviour) are in [docs/DESIGN.md](docs/DESIGN.md).
 
 ### Firm memory: built for the day someone leaves
 Firms lose deal context when senior people leave, and pass reasons, relationships and model history are rarely written down ([see the pitch](docs/PITCH.md)). Deal Tracker builds in:

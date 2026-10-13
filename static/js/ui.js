@@ -1,5 +1,6 @@
 // Rendering helpers, formatting, modals, toasts and small reusable widgets.
 import { store } from './api.js';
+import { icon as svgIcon } from './icons.js';
 
 // ---------------------------------------------------------------- templating
 export class Raw { constructor(s) { this.s = s; } toString() { return this.s; } }
@@ -105,13 +106,12 @@ export function stageChip(stage) {
 }
 export function prioChip(p) {
   if (p !== 'High') return '';
-  return html`<span class="chip high" title="High priority">▲ High</span>`;
+  return html`<span class="prio" title="High priority">${ic('flag', 'sm')}High</span>`;
 }
 export function sentimentChip(s) {
   if (!s) return '';
   const cls = s === 'Positive' ? 'pos' : s === 'Negative' ? 'neg' : '';
-  const icon = s === 'Positive' ? '▲' : s === 'Negative' ? '▼' : '●';
-  return html`<span class="chip ${cls}">${icon} ${s}</span>`;
+  return html`<span class="sent ${cls}">${s}</span>`;
 }
 export function dateBlock(s) {
   const d = parseDate(s);
@@ -119,25 +119,24 @@ export function dateBlock(s) {
   const past = d < new Date();
   return html`<div class="date-block ${past ? 'past' : ''}"><div class="m">${d.toLocaleDateString(undefined, { month: 'short' })}</div><div class="d">${d.getDate()}</div></div>`;
 }
-export const ICONS = {
-  upload: raw('<svg viewBox="0 0 24 24"><path d="M11 16V7.8l-3.6 3.6L6 10l6-6 6 6-1.4 1.4L13 7.8V16zm-7 4v-6h2v4h12v-4h2v6z"/></svg>'),
-  edit: raw('<svg viewBox="0 0 24 24"><path d="M4 17.2V20h2.8l8.3-8.3-2.8-2.8zm15.7-9.5a1 1 0 0 0 0-1.4l-2-2a1 1 0 0 0-1.4 0l-1.6 1.6 2.8 2.8z"/></svg>'),
-  trash: raw('<svg viewBox="0 0 24 24"><path d="M7 21a2 2 0 0 1-2-2V7H4V5h5V4h6v1h5v2h-1v12a2 2 0 0 1-2 2zM9 9v8h2V9zm4 0v8h2V9z"/></svg>'),
-  plus: raw('<svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>'),
-  download: raw('<svg viewBox="0 0 24 24"><path d="M11 4h2v8.2l3.6-3.6L18 10l-6 6-6-6 1.4-1.4 3.6 3.6zM4 18h16v2H4z"/></svg>'),
-  spark: raw('<svg viewBox="0 0 24 24"><path d="M12 2l1.8 5.6L19.5 9l-5.7 1.6L12 16l-1.8-5.4L4.5 9l5.7-1.4zM19 14l.9 2.6 2.6.9-2.6.9L19 21l-.9-2.6-2.6-.9 2.6-.9z"/></svg>'),
-  close: raw('<svg viewBox="0 0 24 24"><path d="M6.4 5 12 10.6 17.6 5 19 6.4 13.4 12l5.6 5.6-1.4 1.4-5.6-5.6L6.4 19 5 17.6l5.6-5.6L5 6.4z"/></svg>'),
-  link: raw('<svg viewBox="0 0 24 24"><path d="M10.6 13.4a1 1 0 0 1 0-1.4l3.5-3.5a3 3 0 1 1 4.2 4.2l-2 2-1.4-1.4 2-2a1 1 0 1 0-1.4-1.4L12 13.4a1 1 0 0 1-1.4 0zm2.8-2.8a1 1 0 0 1 0 1.4l-3.5 3.5a3 3 0 1 1-4.2-4.2l2-2 1.4 1.4-2 2a1 1 0 1 0 1.4 1.4L12 10.6a1 1 0 0 1 1.4 0z"/></svg>'),
-  ext: raw('<svg viewBox="0 0 24 24"><path d="M14 3h7v7h-2V6.4l-9.3 9.3-1.4-1.4L17.6 5H14zM5 5h6v2H5v12h12v-6h2v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V7a2 2 0 0 1 2-2z"/></svg>'),
-};
+
+// Lucide line icons (see icons.js). ic() returns markup ready for html``.
+export const ic = (name, cls = '') => raw(svgIcon(name, cls));
+export const ICONS = new Proxy({}, { get: (_, name) => ic(name) });
 
 // ---------------------------------------------------------------- toasts
-export function toast(msg, type = '') {
+// toast('Saved') · toast('Moved', '', { action: 'Undo', onAction })
+export function toast(msg, type = '', { action, onAction, icon: iconName, ms } = {}) {
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  el.textContent = msg;
-  $('#toast-root').appendChild(el);
-  setTimeout(() => el.remove(), type === 'err' ? 6000 : 3200);
+  el.setAttribute('role', 'status');
+  el.innerHTML = String(html`${iconName ? ic(iconName) : type === 'err' ? ic('alert') : ''}<span>${msg}</span>${action ? html`<button type="button">${action}</button>` : ''}`);
+  const root = $('#toast-root');
+  while (root.children.length > 2) root.firstElementChild.remove();
+  root.appendChild(el);
+  const leave = () => { el.classList.add('leaving'); setTimeout(() => el.remove(), 200); };
+  const timer = setTimeout(leave, ms || (action ? 6000 : type === 'err' ? 6000 : 2800));
+  if (action) el.querySelector('button').addEventListener('click', () => { clearTimeout(timer); leave(); onAction && onAction(); });
 }
 export const errToast = (e) => toast(e.message || String(e), 'err');
 
@@ -170,7 +169,9 @@ export function modal({ title, body, foot, size = '', onMount, onClose }) {
   root.appendChild(wrap);
   const prevFocus = document.activeElement;
   const close = () => {
-    wrap.remove();
+    if (wrap.classList.contains('closing')) return;
+    wrap.classList.add('closing');
+    setTimeout(() => wrap.remove(), 140);
     document.removeEventListener('keydown', onKey);
     onClose && onClose();
     prevFocus && prevFocus.focus && prevFocus.focus();
@@ -310,6 +311,6 @@ export function bytes(n) {
 export function ring(score, size = 56) {
   if (score == null) return html`<span class="ring" style="--s:${size}px"><svg viewBox="0 0 36 36"><circle class="bg" cx="18" cy="18" r="15.5" fill="none" stroke-width="3.5"/></svg><span>—</span></span>`;
   const c = 2 * Math.PI * 15.5;
-  const col = score >= 75 ? 'var(--good)' : score >= 50 ? 'var(--warning)' : 'var(--serious)';
+  const col = score >= 75 ? 'var(--ink)' : score >= 50 ? 'var(--warn)' : 'var(--bad)';
   return html`<span class="ring" style="--s:${size}px;--k:${col}" title="${score}% captured"><svg viewBox="0 0 36 36"><circle class="bg" cx="18" cy="18" r="15.5" fill="none" stroke-width="3.5"/><circle class="fg" cx="18" cy="18" r="15.5" fill="none" stroke-width="3.5" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - score / 100)}"/></svg>${size >= 44 ? html`<span>${score}%</span>` : ''}</span>`;
 }

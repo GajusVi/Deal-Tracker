@@ -1,6 +1,6 @@
 import { api, store, loadMeta } from '../api.js';
-import { html, $, toast, errToast, withBusy, options, ICONS } from '../ui.js';
-import { applyBranding } from '../app.js';
+import { html, $, toast, errToast, withBusy, options, ic } from '../ui.js';
+import { applyBranding, setCrumbs } from '../app.js';
 import { hasDemo, clearDemo, demoSummary } from '../forms.js';
 
 const LISTS = [
@@ -16,44 +16,33 @@ const LISTS = [
 export async function renderSettings(view) {
   const m = store.meta;
   const s = m.settings;
+  setCrumbs([{ label: 'Settings' }]);
+  const group = (title, desc, body) => html`<section class="set-row"><div class="set-label"><h2>${title}</h2>${desc ? html`<p>${desc}</p>` : ''}</div><div class="set-body">${body}</div></section>`;
   view.innerHTML = String(html`
-    <div class="page-head"><div><h1>Settings</h1><p>Personalise your workspace. Everything is stored locally in <code>${m.data_dir}</code>.</p></div>
-      <button class="btn primary" id="save">Save settings</button></div>
-    <div class="settings-grid">
-      <div class="card card-pad stack">
-        <h2>Workspace</h2>
-        <div class="field"><label>Firm / fund name</label><input type="text" id="firm_name" value="${s.firm_name || ''}"></div>
-        <div class="field"><label>Base currency</label><select id="base_currency">${options(['USD', 'EUR', 'GBP', 'CHF', 'CAD', 'AUD'], s.base_currency)}</select></div>
-        <div class="field"><label>Flag strong relationships as going cold after (days)</label><input type="number" id="cold_days" min="7" value="${s.cold_days || 60}"></div>
-      </div>
-      <div class="card card-pad stack">
-        <h2>${ICONS.spark} Claude for CIM analysis <small class="muted">(optional)</small></h2>
-        <p class="t2" style="margin:0">The built-in fact detector works offline. Add an Anthropic API key to also let Claude read CIMs — useful for scanned PDFs, complex tables, and to draft highlights, risks and a summary. Documents are sent to the Anthropic API only when you click “Analyze with Claude”.</p>
-        ${m.ai_from_env ? html`<p class="chip pos">✓ Using ANTHROPIC_API_KEY from the environment</p>` : html`
-          <div class="field"><label>Anthropic API key</label><input type="password" id="api_key" placeholder="${m.has_stored_api_key ? '•••••••• saved — type to replace' : 'sk-ant-…'}" autocomplete="off">
-          <span class="hint">Stored in the local database on this computer.</span></div>
-          ${m.has_stored_api_key ? html`<button class="btn sm danger" id="clear-key" style="align-self:flex-start">Remove saved key</button>` : ''}`}
-        <p class="muted" style="margin:0;font-size:12px">Status: ${m.ai_enabled ? 'enabled' : 'not configured'}</p>
-      </div>
-      <div class="card card-pad stack">
-        <h2>Data & backup</h2>
-        <p class="t2" style="margin:0">All companies, notes, uploads and settings live in the data folder. Copy that folder to back up or move to another computer.</p>
-        <div class="row" style="justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:var(--fill)">
-          <span style="font-size:14px">${hasDemo() ? html`<b>Sample data:</b> ${demoSummary()}` : html`<span class="muted">No sample data in this workspace.</span>`}</span>
-          ${hasDemo() ? html`<button class="btn sm danger" id="clear-demo">Clear sample data</button>` : ''}
-        </div>
-        <div class="btn-row">
-          <a class="btn" href="/api/export/backup.json">${ICONS.download} Download JSON backup</a>
-          <a class="btn" href="/api/export/companies.csv">${ICONS.download} Companies CSV</a>
-        </div>
-      </div>
-      ${LISTS.map(([key, label, hint]) => html`
-        <div class="card card-pad stack">
-          <h2>${label}</h2>
-          ${hint ? html`<p class="muted" style="margin:0;font-size:12px">${hint}</p>` : ''}
-          <textarea id="list-${key}" spellcheck="false">${(s[key] || []).join('\n')}</textarea>
-          <span class="muted" style="font-size:12px">One per line.</span>
+    <div class="page-head"><div><h1>Settings</h1><p>Everything here is stored on this computer.</p></div>
+      <button class="btn primary" id="save">Save changes</button></div>
+    <div class="settings">
+      ${group('Workspace', 'Your firm name appears in the sidebar and on one-pagers.', html`
+        <div class="field"><label>Firm or fund name</label><input type="text" id="firm_name" value="${s.firm_name || ''}"></div>
+        <div class="form">
+          <div class="field"><label>Base currency</label><select id="base_currency">${options(['USD', 'EUR', 'GBP', 'CHF', 'CAD', 'AUD'], s.base_currency)}</select></div>
+          <div class="field"><label>Relationship goes cold after</label><div class="input-group suffix"><input type="number" id="cold_days" min="7" value="${s.cold_days || 60}"><span class="addon">days</span></div></div>
         </div>`)}
+      ${group('Claude for CIMs', 'Optional. The built-in detector works offline; Claude adds scanned PDFs, complex tables, and drafted highlights and risks.', html`
+        ${m.ai_from_env ? html`<p class="set-status">${ic('checkCircle')}Using <code>ANTHROPIC_API_KEY</code> from the environment</p>` : html`
+          <div class="field"><label>Anthropic API key</label><input type="password" id="api_key" placeholder="${m.has_stored_api_key ? 'Saved. Type to replace' : 'sk-ant-…'}" autocomplete="off">
+          <span class="hint">Kept in the local database. Documents leave this computer only when you choose “Analyze with Claude”.</span></div>
+          ${m.has_stored_api_key ? html`<button class="btn sm ghost danger" id="clear-key" style="align-self:flex-start">Remove saved key</button>` : ''}`}
+        <p class="set-status ${m.ai_enabled ? 'on' : ''}">${ic(m.ai_enabled ? 'checkCircle' : 'circle')}${m.ai_enabled ? 'Enabled' : 'Not configured'}</p>`)}
+      ${group('Data & backup', 'Everything lives in the data folder. Copy it to back up or move to another computer.', html`
+        <div class="field"><label>Data folder</label><code class="path" title="${m.data_dir}">${m.data_dir}</code></div>
+        ${hasDemo() ? html`<div class="set-inline"><span><b>Sample data</b><small class="muted">${demoSummary()}</small></span><button class="btn sm" id="clear-demo">${ic('trash')}Clear sample data</button></div>` : ''}
+        <div class="btn-row">
+          <a class="btn" href="/api/export/backup.json">${ic('download')}JSON backup</a>
+          <a class="btn" href="/api/export/companies.csv">${ic('download')}Companies CSV</a>
+        </div>`)}
+      ${LISTS.map(([key, label, hint]) => group(label, hint || 'One per line.', html`
+        <textarea id="list-${key}" spellcheck="false" rows="${Math.min(10, Math.max(4, (s[key] || []).length + 1))}">${(s[key] || []).join('\n')}</textarea>`))}
     </div>`);
 
   $('#save', view).addEventListener('click', (e) => withBusy(e.currentTarget, async () => {
@@ -68,7 +57,7 @@ export async function renderSettings(view) {
     try {
       await api.put('/api/settings', body);
       await loadMeta(); applyBranding();
-      toast('Settings saved'); renderSettings(view);
+      toast('Settings saved', '', { icon: 'check' }); renderSettings(view);
     } catch (err) { errToast(err); }
   }));
   $('#clear-demo', view)?.addEventListener('click', async (e) => { if (await withBusy(e.currentTarget, () => clearDemo())) renderSettings(view); });
