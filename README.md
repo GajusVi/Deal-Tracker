@@ -64,6 +64,21 @@ or, on GitHub, click **Code → Download ZIP** and unzip it somewhere you'll kee
 
 Options: `./run.sh --port 8080`, `./run.sh --data /path/to/folder`, `./run.sh --no-browser`.
 
+### Updating
+Close Deal Tracker, then run the updater in your Deal Tracker folder:
+
+- **macOS:** double-click `Update Deal Tracker.command`
+- **Windows:** double-click `update.bat`
+- **Linux:** `./update.sh`
+
+It downloads the latest version from GitHub and replaces the app files. Your `data` folder and any files of your own in the folder are kept. A git clone is updated with `git pull` instead.
+
+It also cleans up older copies. It looks in Downloads, Desktop, Documents and next to the current folder for other Deal Tracker folders. It moves the most recently used data into this copy and deletes the old folders, after listing them and asking you once. Data it doesn't keep is saved to `data-backups/` first, and folders that are git clones are never deleted.
+
+**Coming from a version without the updater?** Download the latest ZIP, unzip it, and double-click the updater inside the new folder. It finds your old copy, brings your data across and removes the old folder.
+
+Options: `--cleanup-only` (tidy old copies without downloading), `--from-zip PATH` (update from a ZIP you already downloaded), `--yes` (don't ask).
+
 ### Try the CIM detection
 `samples/` contains two sample CIMs (`Project_Cedar_CIM.pdf`, `Project_Atlas_CIM.txt`) and two versions of a sample LBO model. Use **New → Company from CIM** and drop in the PDF.
 
@@ -97,6 +112,7 @@ dealtracker/
   models_parser.py  reads IRR / MOIC / multiples from Excel models
   geo.py            country → region mapping
   seed.py           demo data
+update.py           updater: latest version from GitHub + cleanup of old copies
 static/js/
   app.js            router, global search, quick-add
   forms.js          company / contact / meeting dialogs, CIM review
