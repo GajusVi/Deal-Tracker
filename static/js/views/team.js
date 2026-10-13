@@ -1,5 +1,5 @@
 import { api, store } from '../api.js';
-import { html, $, logo, money, ago, fmtDate, toast, errToast, withBusy, confirmDialog, options, initials, strength, ic, recordBar } from '../ui.js';
+import { html, $, logo, money, ago, fmtDate, toast, errToast, withBusy, confirmDialog, options, initials, strength, ic, recordBar, tkr } from '../ui.js';
 import { setCrumbs } from '../app.js';
 import { contactView } from '../forms.js';
 
@@ -27,7 +27,7 @@ export async function renderTeam(view) {
         <tbody>${items.map((it) => html`<tr>
           <td>${it.label}</td>
           <td class="cov"><span class="cov-bar"><i style="width:${live.length ? (it.have / live.length) * 100 : 0}%"></i></span><b>${it.have}</b><small>of ${live.length}</small></td>
-          <td>${it.missing.length ? html`<span class="cov-list">${it.missing.map((c) => html`<a class="co-link" href="#/company/${c.id}"><span class="dot" style="background:${c.color}"></span>${c.name}</a>`)}</span>` : html`<span class="muted">All live deals</span>`}</td>
+          <td>${it.missing.length ? html`<span class="cov-list">${it.missing.map((c) => html`<a class="co-link" href="#/company/${c.id}"><span class="dot" style="background:${c.color}"></span>${c.name}${tkr(c.codename)}</a>`)}</span>` : html`<span class="muted">All live deals</span>`}</td>
         </tr>`)}</tbody>
       </table></div>
     </section>
@@ -82,8 +82,8 @@ export async function renderHandover(view, member) {
     <div class="section-head" style="margin-top:36px"><h2>Deals</h2><span class="aside">${h.deals.length}</span></div>
     ${h.deals.length ? h.deals.map((d) => html`
       <div class="ho-deal" style="--c:${d.color}">
-        <div class="head">${logo(d)}<div style="flex:1;min-width:0"><h3><a href="#/company/${d.id}" style="color:inherit">${d.name}</a></h3>
-          <div class="muted" style="font-size:13px">${[d.codename, d.role, d.stage, d.advisor ? `via ${d.advisor}` : null].filter(Boolean).join(' · ')}</div></div>
+        <div class="head">${logo(d)}<div style="flex:1;min-width:0"><h3><a href="#/company/${d.id}" style="color:inherit">${d.name}</a>${tkr(d.codename)}</h3>
+          <div class="muted" style="font-size:13px">${[d.role, d.stage, d.advisor ? `via ${d.advisor}` : null].filter(Boolean).join(' · ')}</div></div>
           <div class="ho-rec" title="Deal record">${recordBar(d.knowledge.done, d.knowledge.total)}<span>${d.knowledge.done} of ${d.knowledge.total}</span></div></div>
         ${d.description ? html`<p class="prose" style="color:var(--ink-2)">${d.description}</p>` : ''}
         <div class="ho-grid">

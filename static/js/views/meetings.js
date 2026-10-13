@@ -1,5 +1,5 @@
 import { api, store } from '../api.js';
-import { html, $, options, debounce, dateBlock, sentimentChip, ic } from '../ui.js';
+import { html, $, options, debounce, dateBlock, sentimentChip, ic, tkr } from '../ui.js';
 import { setCrumbs } from '../app.js';
 import { meetingForm, meetingView } from '../forms.js';
 
@@ -45,7 +45,7 @@ export async function renderMeetings(view) {
           <div class="meta-line">
             <span>${time(m.starts_at)}</span>
             <span>${m.meeting_type || 'Meeting'}</span>
-            ${m.company_id ? html`<a href="#/company/${m.company_id}" class="co-link"><span class="dot" style="background:${m.company_color}"></span>${m.company_name}</a>` : html`<span>Market</span>`}
+            ${m.company_id ? html`<a href="#/company/${m.company_id}" class="co-link"><span class="dot" style="background:${m.company_color}"></span>${m.company_name}${tkr(m.company_codename)}</a>` : html`<span>Market</span>`}
             ${m.attendees.length ? html`<span>${m.attendees.map((a) => a.name).join(', ')}</span>` : ''}
             ${m.sentiment ? html`<span>${sentimentChip(m.sentiment)}</span>` : ''}
           </div>

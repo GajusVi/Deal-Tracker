@@ -138,7 +138,7 @@ def attention(db, settings):
     touch = last_touch(db)
     for c in comps:
         live = c["stage"] not in dbm.TERMINAL_STAGES and c["status"] != "Passed"
-        base = {"company_id": c["id"], "company_name": c["name"], "color": c["color"],
+        base = {"company_id": c["id"], "company_name": c["name"], "company_codename": c["codename"], "color": c["color"],
                 "logo_url": f"/files/logos/{c['logo_path']}" if c.get("logo_path") else None}
         if live and c["next_step"] and c["next_step_date"] and c["next_step_date"] < _today():
             items.append({**base, "kind": "overdue", "severity": 3, "date": c["next_step_date"],
@@ -245,7 +245,7 @@ def handover(db, member):
     met = contact_last_met(db)
     contacts = rows(db.execute(
         "SELECT ct.id, ct.name, ct.title, ct.organization, ct.contact_type, ct.strength, ct.email, ct.phone, ct.notes, "
-        "c.name AS company_name FROM contacts ct LEFT JOIN companies c ON c.id = ct.company_id "
+        "c.name AS company_name, c.codename AS company_codename FROM contacts ct LEFT JOIN companies c ON c.id = ct.company_id "
         "WHERE ct.owner = ? ORDER BY ct.strength DESC, ct.name", (member,)))
     for ct in contacts:
         ct["last_met"] = met.get(ct["id"])

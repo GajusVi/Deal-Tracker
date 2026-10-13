@@ -197,6 +197,11 @@ def test_memory_features(client):
     assert [i["short"] for i in client.get("/api/meta").json["record_items"]][3] == "model"
     assert all({"complete", "gaps"} <= m.keys() for m in d["team"])
 
+    # Codenames travel with company names so the UI can show ticker labels.
+    assert any(a.get("company_codename") == "Project Volt" for a in d["attention"])
+    assert all("company_codename" in n for n in d["next_steps"] + d["upcoming_meetings"])
+    assert any(m.get("company_codename") == "Project Atlas" for m in client.get("/api/meetings").json)
+
     # Prior looks: re-adding a passed company surfaces why it was passed.
     hits = client.get("/api/companies/similar?name=Tidewater Logistics Pte. Ltd.").json
     assert hits[0]["name"] == "Tidewater Logistics" and hits[0]["pass_reason"] == "Valuation gap"

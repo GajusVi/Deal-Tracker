@@ -1,5 +1,5 @@
 import { api, store } from '../api.js';
-import { html, $, logo, money, mult, pct, ago, options, debounce, ic, prioChip } from '../ui.js';
+import { html, $, logo, money, mult, pct, ago, options, debounce, ic, prioChip, tkr } from '../ui.js';
 import { quickNew, setCrumbs } from '../app.js';
 import { companyCard } from './dashboard.js';
 
@@ -73,7 +73,7 @@ export async function renderCompanies(view) {
     el.innerHTML = String(html`<div class="table-wrap"><table class="table">
       <thead><tr>${COLS.map(([key, label, cls]) => html`<th class="sortable ${cls || ''} ${state.sort === key ? 'sorted' : ''} ${state.sort === key && state.asc ? 'asc' : ''}" data-sort="${key}">${label}</th>`)}</tr></thead>
       <tbody>${list.map((c) => html`<tr data-id="${c.id}">
-        <td><div class="cell-co">${logo(c, 'sm')}<div><b>${c.name}</b><small class="muted">${c.codename || ''}</small></div>${prioChip(c.priority)}</div></td>
+        <td><div class="cell-co">${logo(c, 'sm')}<div class="nm-row"><b>${c.name}</b>${tkr(c.codename)}</div>${prioChip(c.priority)}</div></td>
         <td>${c.stage}</td>
         <td>${c.sector || '—'}</td><td>${c.country || '—'}</td>
         <td class="r num">${money(c.ev, c.currency)}</td><td class="r num">${money(c.revenue, c.currency)}</td><td class="r num">${money(c.ebitda, c.currency)}</td>

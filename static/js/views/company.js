@@ -1,7 +1,7 @@
 import { api, store } from '../api.js';
 import {
   html, raw, $, $$, logo, money, mult, pct, num, ago, fmtDate, fmtDateTime, toast, errToast, withBusy, confirmDialog,
-  dropzone, dominantColor, ICONS, ic, fileExt, bytes, avatar, strength, sentimentChip, dateBlock, prioChip, modal, options, formValues,
+  dropzone, dominantColor, ICONS, ic, fileExt, bytes, avatar, strength, sentimentChip, dateBlock, prioChip, modal, options, formValues, tkr,
 } from '../ui.js';
 import { companyForm, contactForm, meetingForm, meetingView, contactView, reviewCim, renderSeriesChart, moveStage, priorLooksBanner } from '../forms.js';
 import { networkGraph } from '../graph.js';
@@ -29,8 +29,8 @@ export async function renderCompany(view, id, tab = 'overview') {
       <div class="hero-main">
         <span id="hero-logo" title="Change logo">${logo(c, 'lg')}</span>
         <div class="hero-title">
-          ${c.codename || c.is_demo ? html`<span class="eyebrow">${[c.codename, c.is_demo ? 'Sample' : ''].filter(Boolean).join(' · ')}</span>` : ''}
-          <h1>${c.name}</h1>
+          ${c.is_demo ? html`<span class="eyebrow">Sample data</span>` : ''}
+          <h1>${c.name}${tkr(c.codename, 'lg')}</h1>
           <div class="meta-line">
             ${c.sector ? html`<span>${c.sector}</span>` : ''}
             ${c.country ? html`<span>${[c.hq_city, c.country].filter(Boolean).join(', ')}</span>` : ''}
@@ -438,8 +438,8 @@ function renderOnePager(view, c) {
       <div class="op-head">
         ${logo(c, 'lg')}
         <div style="flex:1;min-width:0">
-          <div class="eyebrow">${c.codename || 'Company profile'}</div>
-          <h1>${c.name}</h1>
+          <div class="eyebrow">Company profile</div>
+          <h1>${c.name}${tkr(c.codename, 'lg')}</h1>
           <div class="t2">${[c.sector, [c.hq_city, c.country].filter(Boolean).join(', '), c.deal_type].filter(Boolean).join(' · ')}</div>
         </div>
         <div style="text-align:right"><span class="chip stage">${c.stage}</span><div class="muted" style="font-size:12px;margin-top:6px">${fmtDate(new Date().toISOString())}</div></div>
