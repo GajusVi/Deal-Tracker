@@ -3,8 +3,10 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="view-transition" content="same-origin">
   <title>Deal Tracker</title>
-  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%232a5bd7'/><path d='M16 44 L28 30 L36 37 L48 20' stroke='white' stroke-width='6' fill='none' stroke-linecap='round' stroke-linejoin='round'/></svg>">
+  <link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'><rect width='64' height='64' rx='14' fill='%230e0f12'/><text x='32' y='43' text-anchor='middle' font-family='Georgia,serif' font-size='32' fill='white'>D</text></svg>">
+  <link rel="preload" href="/static/fonts/source-serif-4.woff2" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="/static/css/app.css">
   <script>
     try { const t = localStorage.getItem('dt-theme'); if (t) document.documentElement.dataset.theme = t; } catch (e) {}
@@ -14,43 +16,39 @@
   <div class="app">
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#/">
-        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 17l5.5-6 4 3.5L20 7"/><path d="M15 7h5v5"/></svg></span>
-        <span class="brand-text"><strong>Deal Tracker</strong><small id="firm-name">Private Equity</small></span>
+        <span class="brand-mark" id="brand-mark" aria-hidden="true">D</span>
+        <span class="brand-text"><strong>Deal Tracker</strong><small id="firm-name">Private equity</small></span>
       </a>
-      <nav class="nav">
-        <a href="#/" data-route="dashboard"><svg viewBox="0 0 24 24"><path d="M4 13h7V4H4zm0 7h7v-5H4zm9 0h7v-9h-7zm0-16v5h7V4z"/></svg>Overview<span class="badge" id="attn-badge" hidden></span></a>
-        <a href="#/pipeline" data-route="pipeline"><svg viewBox="0 0 24 24"><path d="M4 4h4.5v16H4zm5.75 0h4.5v11h-4.5zM15.5 4H20v7h-4.5z"/></svg>Pipeline</a>
-        <a href="#/companies" data-route="companies"><svg viewBox="0 0 24 24"><path d="M4 21V6l8-3v5l8 3v10h-6v-4h-4v4zm3-11h2V8H7zm0 4h2v-2H7zm8 0h2v-2h-2z"/></svg>Companies</a>
-        <a href="#/meetings" data-route="meetings"><svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zM5 9h14v10H5zm2 2.5v2h4v-2zm0 3.5v2h7v-2z"/></svg>Meetings</a>
+      <nav class="nav" aria-label="Main">
+        <a href="#/" data-route="dashboard"><i data-icon="overview"></i>Overview<span class="badge" id="attn-badge" hidden></span></a>
+        <a href="#/pipeline" data-route="pipeline"><i data-icon="pipeline"></i>Pipeline<kbd>G P</kbd></a>
+        <a href="#/companies" data-route="companies"><i data-icon="companies"></i>Companies<kbd>G C</kbd></a>
+        <a href="#/meetings" data-route="meetings"><i data-icon="meetings"></i>Meetings<kbd>G M</kbd></a>
         <div class="nav-label">Relationships</div>
-        <a href="#/contacts" data-route="contacts"><svg viewBox="0 0 24 24"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm8 1a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM1 20c0-3.3 3.6-6 8-6s8 2.7 8 6v1H1zm16.5-6.9c3 .4 5.5 2.4 5.5 4.9v1h-4.2c0-2.3-.5-4.3-1.3-5.9z"/></svg>Contacts</a>
-        <a href="#/network" data-route="network"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 1 1 5.8V10h4.2a3 3 0 1 1 0 2H13v2.2a3 3 0 1 1-2 0V12H6.8a3 3 0 1 1 0-2H11V7.8A3 3 0 0 1 12 2z"/></svg>Network</a>
+        <a href="#/contacts" data-route="contacts"><i data-icon="contacts"></i>Contacts<kbd>G R</kbd></a>
+        <a href="#/network" data-route="network"><i data-icon="network"></i>Network<kbd>G N</kbd></a>
         <div class="nav-label">Firm memory</div>
-        <a href="#/team" data-route="team"><svg viewBox="0 0 24 24"><path d="M12 2 3 6v6c0 5 3.8 9.4 9 10 5.2-.6 9-5 9-10V6zm-1 14-4-4 1.4-1.4L11 13.2l4.6-4.6L17 10z"/></svg>Team &amp; handover</a>
+        <a href="#/team" data-route="team"><i data-icon="team"></i>Team &amp; handover<kbd>G T</kbd></a>
       </nav>
       <div class="nav-bottom">
-        <a href="#/settings" data-route="settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.6 7.6 0 0 0 1.7 1L11 21h4l.4-2.7a7.6 7.6 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>Settings</a>
-        <button class="theme-toggle" id="theme-toggle" type="button" title="Toggle light / dark">
-          <svg viewBox="0 0 24 24"><path d="M12 3a9 9 0 1 0 9 9 7 7 0 0 1-9-9z"/></svg><span>Theme</span>
-        </button>
+        <a href="#/settings" data-route="settings"><i data-icon="settings"></i>Settings</a>
+        <button id="shortcuts-btn" type="button"><i data-icon="keyboard"></i>Shortcuts<kbd style="margin-left:auto">?</kbd></button>
+        <button class="theme-toggle" id="theme-toggle" type="button"><i data-icon="moon"></i><span>Dark mode</span></button>
       </div>
     </aside>
 
     <div class="main">
-      <header class="topbar">
-        <button class="icon-btn menu-btn" id="menu-btn" aria-label="Menu"><svg viewBox="0 0 24 24"><path d="M3 6h18v2H3zm0 5h18v2H3zm0 5h18v2H3z"/></svg></button>
-        <div class="search">
-          <svg viewBox="0 0 24 24"><path d="M10 2a8 8 0 0 1 6.3 12.9l5.4 5.4-1.4 1.4-5.4-5.4A8 8 0 1 1 10 2zm0 2a6 6 0 1 0 0 12 6 6 0 0 0 0-12z"/></svg>
-          <input id="global-search" type="search" placeholder="Search companies, people, notes, CIM text…  (Ctrl K)" autocomplete="off">
-          <div class="search-results" id="search-results" hidden></div>
-        </div>
+      <header class="topbar" id="topbar">
+        <button class="icon-btn menu-btn" id="menu-btn" aria-label="Menu"><i data-icon="menu"></i></button>
+        <nav class="crumbs" id="crumbs" aria-label="Breadcrumb"></nav>
+        <button class="cmdk-trigger" id="cmdk-trigger" type="button"><i data-icon="search"></i><span>Search or jump to…</span><kbd id="cmdk-kbd">⌘K</kbd></button>
         <div class="quick-add">
-          <button class="btn primary" id="quick-add-btn"><svg viewBox="0 0 24 24"><path d="M11 5h2v6h6v2h-6v6h-2v-6H5v-2h6z"/></svg>New</button>
+          <button class="btn primary sm" id="quick-add-btn"><i data-icon="plus"></i>New</button>
           <div class="menu" id="quick-add-menu" hidden>
-            <button data-new="company"><b>Company</b><small>Add a target manually</small></button>
-            <button data-new="cim"><b>Company from CIM</b><small>Upload a CIM, auto-detect key facts</small></button>
-            <button data-new="meeting"><b>Meeting</b><small>Log notes from a meeting</small></button>
-            <button data-new="contact"><b>Contact</b><small>Banker, management, expert…</small></button>
+            <button data-new="company"><i data-icon="companies"></i><span>Company</span><kbd>C</kbd></button>
+            <button data-new="cim"><i data-icon="scan"></i><span>Company from CIM</span><kbd>U</kbd></button>
+            <button data-new="meeting"><i data-icon="meetings"></i><span>Meeting notes</span><kbd>M</kbd></button>
+            <button data-new="contact"><i data-icon="userPlus"></i><span>Contact</span></button>
           </div>
         </div>
       </header>

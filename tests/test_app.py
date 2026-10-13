@@ -80,6 +80,20 @@ def test_company_crud_and_stage_history(client):
     assert client.get(f"/api/companies/{c['id']}").status_code == 404
 
 
+def test_undo_stage_leaves_no_trace(client):
+    c = client.post("/api/companies", json={"name": "Undo Co"}).json
+    before = client.get(f"/api/companies/{c['id']}").json
+    client.patch(f"/api/companies/{c['id']}", json={"stage": "Passed", "status": "Passed", "pass_reason": "Valuation"})
+    r = client.post(f"/api/companies/{c['id']}/undo-stage", json={"status": "Active"})
+    assert r.status_code == 200
+    assert r.json["stage"] == "Sourcing" and r.json["status"] == "Active"
+    assert r.json["stage_history"] == before["stage_history"]
+    assert r.json["stage_changed_at"] == before["stage_changed_at"]
+    assert not any(a["action"] == "stage" for a in r.json["activity"])
+    # nothing left to undo: only the creation entry remains
+    assert client.post(f"/api/companies/{c['id']}/undo-stage").status_code == 400
+
+
 def test_new_company_from_cim(client):
     with open(os.path.join(SAMPLES, "Project_Cedar_CIM.pdf"), "rb") as fh:
         doc = client.post("/api/cim/analyze", data={"file": (fh, "Project_Cedar_CIM.pdf")},

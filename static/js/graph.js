@@ -1,4 +1,5 @@
 // Force-directed relationship diagram (companies, organisations, people) in plain SVG.
+import { icon as svgIcon } from './icons.js';
 import { esc, initials, typeColor, showTip, hideTip, html } from './ui.js';
 
 const NS = 'http://www.w3.org/2000/svg';
@@ -52,8 +53,8 @@ export function networkGraph(wrap, data, { onOpen, highlight } = {}) {
           : `<text text-anchor="middle" dy="4" style="fill:#fff;stroke:none;font-weight:700;font-size:12px">${esc(initials(n.label))}</text>`);
     } else if (n.kind === 'org') {
       inner = `<rect class="ring" x="${-n.r - 3}" y="${-n.r - 3}" width="${n.r * 2 + 6}" height="${n.r * 2 + 6}" rx="8"/>`
-        + `<rect x="${-n.r}" y="${-n.r}" width="${n.r * 2}" height="${n.r * 2}" rx="6" fill="var(--text-3)"/>`
-        + `<text text-anchor="middle" dy="4" style="fill:#fff;stroke:none;font-weight:700;font-size:10px">${esc(initials(n.label))}</text>`;
+        + `<rect x="${-n.r}" y="${-n.r}" width="${n.r * 2}" height="${n.r * 2}" rx="6" fill="var(--ink)"/>`
+        + `<text text-anchor="middle" dy="4" style="fill:var(--canvas);stroke:none;font-weight:700;font-size:10px">${esc(initials(n.label))}</text>`;
     } else {
       inner = `<circle class="ring" r="${n.r + 2}"/><circle r="${n.r}" fill="${typeColor(n.type)}"/>`;
     }
@@ -209,9 +210,9 @@ export function networkGraph(wrap, data, { onOpen, highlight } = {}) {
 
   const tools = document.createElement('div');
   tools.className = 'graph-tools';
-  tools.innerHTML = '<button title="Zoom in" data-z="in">+</button><button title="Zoom out" data-z="out">−</button><button title="Fit to screen" data-z="fit">⤢</button>';
+  tools.innerHTML = `<button title="Zoom in" data-z="in">${svgIcon('plus')}</button><button title="Zoom out" data-z="out">${svgIcon('minus')}</button><button title="Fit to screen" data-z="fit">${svgIcon('fit')}</button>`;
   tools.addEventListener('click', (e) => {
-    const z = e.target.dataset.z;
+    const z = e.target.closest('[data-z]')?.dataset.z;
     if (z === 'in') zoomAt(1.25); else if (z === 'out') zoomAt(0.8); else if (z === 'fit') fit();
   });
   wrap.appendChild(tools);

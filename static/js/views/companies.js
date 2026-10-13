@@ -1,6 +1,6 @@
 import { api, store } from '../api.js';
-import { html, $, logo, money, mult, pct, ago, options, debounce, ICONS, prioChip } from '../ui.js';
-import { quickNew } from '../app.js';
+import { html, $, logo, money, mult, pct, ago, options, debounce, ic, prioChip } from '../ui.js';
+import { quickNew, setCrumbs } from '../app.js';
 import { companyCard } from './dashboard.js';
 
 const state = { q: '', stage: '', sector: '', region: '', priority: '', mode: 'grid', sort: 'updated_at', asc: false };
@@ -13,24 +13,25 @@ const COLS = [
 ];
 
 export async function renderCompanies(view) {
+  setCrumbs([{ label: 'Companies' }]);
   const s = store.meta.settings;
   view.innerHTML = String(html`
     <div class="page-head">
       <div><h1>Companies</h1><p id="co-count">&nbsp;</p></div>
       <div class="btn-row">
-        <a class="btn ghost" href="/api/export/companies.csv">${ICONS.download} Export CSV</a>
-        <button class="btn" data-qn="cim">${ICONS.upload} New from CIM</button>
-        <button class="btn primary" data-qn="company">${ICONS.plus} Add company</button>
+        <a class="btn ghost" href="/api/export/companies.csv">${ic('download')}Export</a>
+        <button class="btn" data-qn="cim">${ic('scan')}New from CIM</button>
+        <button class="btn primary" data-qn="company">${ic('plus')}Add company</button>
       </div>
     </div>
     <div class="filters">
-      <input type="search" id="f-q" placeholder="Filter by name, codename, tag…" value="${state.q}">
+      <label class="search">${ic('search')}<input type="search" id="f-q" placeholder="Filter by name, codename, tag" value="${state.q}" aria-label="Filter companies"></label>
       <select id="f-stage">${options(s.stages, state.stage, { blank: 'All stages' })}</select>
       <select id="f-sector">${options(s.sectors, state.sector, { blank: 'All sectors' })}</select>
       <select id="f-region">${options(store.meta.regions, state.region, { blank: 'All regions' })}</select>
       <select id="f-priority">${options(['High', 'Medium', 'Low'], state.priority, { blank: 'Any priority' })}</select>
-      <span class="spacer"></span>
-      <div class="seg"><button data-mode="grid" class="${state.mode === 'grid' ? 'on' : ''}">Cards</button><button data-mode="table" class="${state.mode === 'table' ? 'on' : ''}">Table</button></div>
+      <button class="clear" id="f-clear" type="button" hidden>Clear</button>
+      <div class="seg" role="tablist" aria-label="View"><button data-mode="grid" class="${state.mode === 'grid' ? 'on' : ''}" title="Cards">${ic('grid')}</button><button data-mode="table" class="${state.mode === 'table' ? 'on' : ''}" title="Table">${ic('list')}</button></div>
     </div>
     <div id="co-list"></div>`);
 
@@ -41,14 +42,17 @@ export async function renderCompanies(view) {
     draw(list);
   };
   const draw = (list) => {
-    $('#co-count', view).textContent = `${list.length} compan${list.length === 1 ? 'y' : 'ies'}`;
+    const filtered = ['q', 'stage', 'sector', 'region', 'priority'].some((k) => state[k]);
+    $('#co-count', view).textContent = `${list.length} compan${list.length === 1 ? 'y' : 'ies'}${filtered ? ' match your filters' : ' on record'}`;
+    $('#f-clear', view).hidden = !filtered;
+    for (const f of ['stage', 'sector', 'region', 'priority']) $(`#f-${f}`, view).classList.toggle('set', !!state[f]);
     const el = $('#co-list', view);
     if (!list.length) {
-      el.innerHTML = String(html`<div class="card empty"><h3>No companies match</h3><p>Try clearing filters, or add a new company.</p></div>`);
+      el.innerHTML = String(html`<div class="empty">${ic('search')}<h3>Nothing matches</h3><p>No company fits these filters. Clear them, or add the one you had in mind.</p></div>`);
       return;
     }
     if (state.mode === 'grid') {
-      el.innerHTML = String(html`<div class="co-cards">${list.map(companyCard)}</div>`);
+      el.innerHTML = String(html`<div class="co-cards stagger">${list.map(companyCard)}</div>`);
       return;
     }
     const k = state.sort;
@@ -59,11 +63,11 @@ export async function renderCompanies(view) {
       if (y == null) return -1;
       return (typeof x === 'number' ? x - y : String(x).localeCompare(String(y))) * (state.asc ? 1 : -1);
     });
-    el.innerHTML = String(html`<div class="card table-wrap"><table class="table">
+    el.innerHTML = String(html`<div class="table-wrap"><table class="table">
       <thead><tr>${COLS.map(([key, label, cls]) => html`<th class="sortable ${cls || ''} ${state.sort === key ? 'sorted' : ''} ${state.sort === key && state.asc ? 'asc' : ''}" data-sort="${key}">${label}</th>`)}</tr></thead>
       <tbody>${list.map((c) => html`<tr data-id="${c.id}">
         <td><div class="cell-co">${logo(c, 'sm')}<div><b>${c.name}</b><small class="muted">${c.codename || ''}</small></div>${prioChip(c.priority)}</div></td>
-        <td><span class="chip stage">${c.stage}</span></td>
+        <td>${c.stage}</td>
         <td>${c.sector || '—'}</td><td>${c.country || '—'}</td>
         <td class="r num">${money(c.ev, c.currency)}</td><td class="r num">${money(c.revenue, c.currency)}</td><td class="r num">${money(c.ebitda, c.currency)}</td>
         <td class="r num">${pct(c.ebitda_margin)}</td><td class="r num">${mult(c.ev_ebitda)}</td><td class="r num">${c.meeting_count}</td>
@@ -76,6 +80,12 @@ export async function renderCompanies(view) {
     el.querySelectorAll('tbody tr').forEach((tr) => tr.addEventListener('click', () => { location.hash = `#/company/${tr.dataset.id}`; }));
   };
 
+  $('#f-clear', view).addEventListener('click', () => {
+    Object.assign(state, { q: '', stage: '', sector: '', region: '', priority: '' });
+    $('#f-q', view).value = '';
+    for (const f of ['stage', 'sector', 'region', 'priority']) $(`#f-${f}`, view).value = '';
+    load();
+  });
   $('#f-q', view).addEventListener('input', debounce((e) => { state.q = e.target.value; load(); }, 200));
   for (const f of ['stage', 'sector', 'region', 'priority']) $(`#f-${f}`, view).addEventListener('change', (e) => { state[f] = e.target.value; load(); });
   view.querySelectorAll('[data-mode]').forEach((b) => b.addEventListener('click', () => {
