@@ -14,18 +14,19 @@
   <div class="app">
     <aside class="sidebar" id="sidebar">
       <a class="brand" href="#/">
-        <span class="brand-mark" aria-hidden="true">
-          <svg viewBox="0 0 64 64"><rect width="64" height="64" rx="14" fill="currentColor"/><path d="M16 44 L28 30 L36 37 L48 20" stroke="#fff" stroke-width="6" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
-        </span>
+        <span class="brand-mark" aria-hidden="true"><svg viewBox="0 0 24 24"><path d="M4 17l5.5-6 4 3.5L20 7"/><path d="M15 7h5v5"/></svg></span>
         <span class="brand-text"><strong>Deal Tracker</strong><small id="firm-name">Private Equity</small></span>
       </a>
       <nav class="nav">
-        <a href="#/" data-route="dashboard"><svg viewBox="0 0 24 24"><path d="M3 13h8V3H3zm0 8h8v-6H3zm10 0h8V11h-8zm0-18v6h8V3z"/></svg>Dashboard</a>
-        <a href="#/pipeline" data-route="pipeline"><svg viewBox="0 0 24 24"><path d="M3 4h5v16H3zm6.5 0h5v11h-5zM16 4h5v7h-5z"/></svg>Pipeline</a>
-        <a href="#/companies" data-route="companies"><svg viewBox="0 0 24 24"><path d="M4 21V5l8-3v6l8 3v10h-6v-5h-4v5zm3-12h2V7H7zm0 4h2v-2H7zm8 0h2v-2h-2z"/></svg>Companies</a>
-        <a href="#/meetings" data-route="meetings"><svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zM5 9h14v11H5zm2 3v2h4v-2zm0 4v2h7v-2z"/></svg>Meetings</a>
+        <a href="#/" data-route="dashboard"><svg viewBox="0 0 24 24"><path d="M4 13h7V4H4zm0 7h7v-5H4zm9 0h7v-9h-7zm0-16v5h7V4z"/></svg>Overview<span class="badge" id="attn-badge" hidden></span></a>
+        <a href="#/pipeline" data-route="pipeline"><svg viewBox="0 0 24 24"><path d="M4 4h4.5v16H4zm5.75 0h4.5v11h-4.5zM15.5 4H20v7h-4.5z"/></svg>Pipeline</a>
+        <a href="#/companies" data-route="companies"><svg viewBox="0 0 24 24"><path d="M4 21V6l8-3v5l8 3v10h-6v-4h-4v4zm3-11h2V8H7zm0 4h2v-2H7zm8 0h2v-2h-2z"/></svg>Companies</a>
+        <a href="#/meetings" data-route="meetings"><svg viewBox="0 0 24 24"><path d="M7 2v2H5a2 2 0 0 0-2 2v13a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6a2 2 0 0 0-2-2h-2V2h-2v2H9V2zM5 9h14v10H5zm2 2.5v2h4v-2zm0 3.5v2h7v-2z"/></svg>Meetings</a>
+        <div class="nav-label">Relationships</div>
         <a href="#/contacts" data-route="contacts"><svg viewBox="0 0 24 24"><path d="M9 11a4 4 0 1 0 0-8 4 4 0 0 0 0 8zm8 1a3 3 0 1 0 0-6 3 3 0 0 0 0 6zM1 20c0-3.3 3.6-6 8-6s8 2.7 8 6v1H1zm16.5-6.9c3 .4 5.5 2.4 5.5 4.9v1h-4.2c0-2.3-.5-4.3-1.3-5.9z"/></svg>Contacts</a>
         <a href="#/network" data-route="network"><svg viewBox="0 0 24 24"><path d="M12 2a3 3 0 0 1 1 5.8V10h4.2a3 3 0 1 1 0 2H13v2.2a3 3 0 1 1-2 0V12H6.8a3 3 0 1 1 0-2H11V7.8A3 3 0 0 1 12 2z"/></svg>Network</a>
+        <div class="nav-label">Firm memory</div>
+        <a href="#/team" data-route="team"><svg viewBox="0 0 24 24"><path d="M12 2 3 6v6c0 5 3.8 9.4 9 10 5.2-.6 9-5 9-10V6zm-1 14-4-4 1.4-1.4L11 13.2l4.6-4.6L17 10z"/></svg>Team &amp; handover</a>
       </nav>
       <div class="nav-bottom">
         <a href="#/settings" data-route="settings"><svg viewBox="0 0 24 24"><path d="M19.4 13a7.5 7.5 0 0 0 0-2l2.1-1.6-2-3.5-2.5 1a7.6 7.6 0 0 0-1.7-1L15 3h-4l-.4 2.7a7.6 7.6 0 0 0-1.7 1l-2.5-1-2 3.5L6.6 11a7.5 7.5 0 0 0 0 2l-2.1 1.6 2 3.5 2.5-1a7.6 7.6 0 0 0 1.7 1L11 21h4l.4-2.7a7.6 7.6 0 0 0 1.7-1l2.5 1 2-3.5zM13 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"/></svg>Settings</a>

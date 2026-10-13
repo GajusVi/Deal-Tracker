@@ -3,7 +3,9 @@ import { html, $, toast, errToast, withBusy, options, ICONS } from '../ui.js';
 import { applyBranding } from '../app.js';
 
 const LISTS = [
+  ['team_members', 'Team members', 'Deal leads and relationship owners. Used for handover packs.'],
   ['stages', 'Pipeline stages', 'In order. "Closed" and "Passed" are treated as finished deals.'],
+  ['pass_reasons', 'Pass reasons', 'Asked for whenever a deal is passed on.'],
   ['sectors', 'Sectors', ''],
   ['deal_types', 'Deal types', ''],
   ['meeting_types', 'Meeting types', ''],
@@ -21,6 +23,7 @@ export async function renderSettings(view) {
         <h2>Workspace</h2>
         <div class="field"><label>Firm / fund name</label><input type="text" id="firm_name" value="${s.firm_name || ''}"></div>
         <div class="field"><label>Base currency</label><select id="base_currency">${options(['USD', 'EUR', 'GBP', 'CHF', 'CAD', 'AUD'], s.base_currency)}</select></div>
+        <div class="field"><label>Flag strong relationships as going cold after (days)</label><input type="number" id="cold_days" min="7" value="${s.cold_days || 60}"></div>
       </div>
       <div class="card card-pad stack">
         <h2>${ICONS.spark} Claude for CIM analysis <small class="muted">(optional)</small></h2>
@@ -49,10 +52,10 @@ export async function renderSettings(view) {
     </div>`);
 
   $('#save', view).addEventListener('click', (e) => withBusy(e.currentTarget, async () => {
-    const body = { firm_name: $('#firm_name', view).value.trim(), base_currency: $('#base_currency', view).value };
+    const body = { firm_name: $('#firm_name', view).value.trim(), base_currency: $('#base_currency', view).value, cold_days: +$('#cold_days', view).value || 60 };
     for (const [key] of LISTS) {
       const vals = $(`#list-${key}`, view).value.split('\n').map((x) => x.trim()).filter(Boolean);
-      if (!vals.length) return toast(`${key.replace('_', ' ')} cannot be empty`, 'err');
+      if (!vals.length && key !== 'team_members') return toast(`${key.replace('_', ' ')} cannot be empty`, 'err');
       body[key] = [...new Set(vals)];
     }
     const k = $('#api_key', view);

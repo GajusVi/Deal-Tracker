@@ -21,11 +21,12 @@ export async function renderContacts(view) {
     const list = await api.get(`/api/contacts?${qs}`);
     $('#list', view).innerHTML = String(list.length ? html`
       <div class="card table-wrap"><table class="table">
-        <thead><tr><th>Name</th><th>Organisation</th><th>Type</th><th>Strength</th><th class="r">Meetings</th><th class="r">Last met</th><th>Email</th></tr></thead>
+        <thead><tr><th>Name</th><th>Organisation</th><th>Type</th><th>Owner</th><th>Strength</th><th class="r">Meetings</th><th class="r">Last met</th><th>Email</th></tr></thead>
         <tbody>${list.map((p) => html`<tr data-p="${p.id}">
           <td><div class="cell-co">${avatar(p)}<div><b>${p.name}</b><small class="muted">${p.title || ''}</small></div></div></td>
           <td>${p.company_id ? html`<span class="chip"><span class="dot" style="background:${p.company_color}"></span>${p.company_name}</span>` : p.organization || '—'}</td>
           <td>${p.contact_type ? html`<span class="chip"><span class="dot" style="background:${typeColor(p.contact_type)}"></span>${p.contact_type}</span>` : '—'}</td>
+          <td>${p.owner || html`<span class="muted">—</span>`}</td>
           <td>${strength(p.strength)}</td>
           <td class="r num">${p.meeting_count}</td>
           <td class="r muted">${p.last_met ? ago(p.last_met) : '—'}</td>

@@ -1,6 +1,7 @@
 import { api, store } from '../api.js';
 import { html, $$, logo, money, toast, errToast, ICONS, prioChip } from '../ui.js';
 import { quickNew } from '../app.js';
+import { moveStage } from '../forms.js';
 
 export async function renderPipeline(view) {
   const companies = await api.get('/api/companies');
@@ -30,6 +31,7 @@ export async function renderPipeline(view) {
           <a class="k-card" draggable="true" data-id="${c.id}" href="#/company/${c.id}" style="--c:${c.color}">
             <div class="top">${logo(c, 'sm')}<div style="min-width:0;flex:1"><b>${c.name}</b><small class="muted">${[c.codename, c.sector].filter(Boolean).join(' · ')}</small></div></div>
             <div class="foot"><span>EV <b>${money(c.ev, c.currency)}</b></span><span title="Days in current stage">${c.days_in_stage ?? 0}d in stage</span></div>
+            <div class="foot"><span>${c.deal_lead || html`<span class="overdue">No lead</span>`}</span><span title="Deal knowledge captured">${c.knowledge}% captured</span></div>
             ${c.priority === 'High' || c.next_step ? html`<div class="foot">${prioChip(c.priority)}<span style="overflow:hidden;text-overflow:ellipsis;white-space:nowrap">${c.next_step ? '→ ' + c.next_step : ''}</span></div>` : ''}
           </a>`)}</div>
       </div>`;
@@ -53,9 +55,7 @@ export async function renderPipeline(view) {
       const c = companies.find((x) => String(x.id) === String(id));
       if (!c || c.stage === col.dataset.stage) return;
       try {
-        await api.patch(`/api/companies/${id}`, { stage: col.dataset.stage, ...(col.dataset.stage === 'Passed' ? { status: 'Passed' } : c.status === 'Passed' ? { status: 'Active' } : {}) });
-        toast(`${c.name} → ${col.dataset.stage}`);
-        renderPipeline(view);
+        if (await moveStage(c, col.dataset.stage)) renderPipeline(view);
       } catch (err) { errToast(err); }
     });
   });

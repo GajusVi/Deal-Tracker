@@ -1,6 +1,6 @@
 # Deal Tracker
 
-A private, local deal-tracking app for private equity. It runs on your own computer. Your data, CIMs and models stay in a local folder unless you choose to use the optional Claude analysis.
+A private, local deal-tracking app for private equity that keeps your firm's deal memory when people move on. It runs on your own computer. Your data, CIMs and models stay in a local folder unless you choose to use the optional Claude analysis.
 
 ![Dashboard](docs/dashboard.png)
 
@@ -23,6 +23,21 @@ A private, local deal-tracking app for private equity. It runs on your own compu
 | ![Company](docs/company.png) | ![CIM review](docs/cim-review.png) |
 | **Pipeline** | **Relationship network** |
 | ![Pipeline](docs/pipeline.png) | ![Network](docs/network.png) |
+| **Handover pack** | **IC one-pager** |
+| ![Handover](docs/handover.png) | ![One-pager](docs/onepager.png) |
+
+### Firm memory: built for the day someone leaves
+Firms lose deal context when senior people leave, and pass reasons, relationships and model history are rarely written down ([see the pitch](docs/PITCH.md)). Deal Tracker builds in:
+
+| Feature | What it does |
+|---|---|
+| **Knowledge score** | Each live deal is checked for a lead, description, CIM facts, model, meeting notes, mapped people, and a next step or pass reason. Firm-wide and per-person scores appear on the dashboard and the Team page. |
+| **Pass record** | Moving a deal to *Passed* asks for the reason, what would change your mind and a revisit date. These appear on the company page and on the one-pager. |
+| **Prior-look warning** | Adding a company or reading a CIM checks names and codenames against past looks and shows who led it and why it was passed. |
+| **Needs attention** | NDA confidentiality ending or expired, overdue next steps, revisit dates, live deals with no lead, stale deals and strong relationships going cold. |
+| **Team & handover** | Each person gets a handover pack (deals, gaps to close, lessons learned, who to call, relationships to transfer). It prints to PDF, and one click reassigns everything to a successor. |
+| **IC one-pager** | A printable tear sheet built from everything captured on a deal. |
+| **Intermediaries** | Which advisors bring you deals, and how far those deals get. |
 
 ## Run it
 

@@ -232,3 +232,48 @@ def seed_demo(db):
             db.execute("INSERT INTO activity (company_id, entity_type, entity_id, action, summary, created_at) VALUES (?,?,?,?,?,?)",
                        (company_ids[cidx] if cidx is not None else None, "meeting", mid, "created", f"{mtype}: {title}",
                         when.isoformat()))
+
+    _seed_memory(db, now, company_ids, contact_ids)
+
+
+TEAM = ["Alex Morgan", "Owen Brooks", "Priya Shah", "Sam Lee"]
+
+# company_idx -> (lead, team, nda_signed_days_ago, nda_term_days)
+DEAL_TEAMS = {
+    0: ("Alex Morgan", "Priya Shah, Sam Lee", 95, 730),
+    1: ("Owen Brooks", "Sam Lee", 120, 140),        # NDA expiring soon
+    2: ("Priya Shah", "", 30, 730),
+    3: (None, "", None, None),                       # no lead: knowledge has no owner
+    4: ("Alex Morgan", "Owen Brooks", 200, 730),
+    5: ("Sam Lee", "", None, None),
+    6: ("Owen Brooks", "Alex Morgan", 160, 730),
+    7: ("Priya Shah", "", 400, 380),                 # passed deal, NDA expired
+    8: ("Alex Morgan", "Owen Brooks", 500, 1095),
+}
+CONTACT_OWNERS = {
+    0: "Alex Morgan", 1: "Priya Shah", 2: "Alex Morgan", 3: "Sam Lee", 4: "Owen Brooks", 5: "Owen Brooks",
+    6: "Priya Shah", 7: "Priya Shah", 8: "Alex Morgan", 9: "Alex Morgan", 10: "Sam Lee", 11: "Owen Brooks",
+    12: "Sam Lee", 13: "Owen Brooks", 14: "Alex Morgan", 15: "Alex Morgan",
+}
+
+
+def _seed_memory(db, now, company_ids, contact_ids):
+    dbm.set_setting("team_members", TEAM, db)
+    for idx, (lead, team, signed, term) in DEAL_TEAMS.items():
+        nda_signed = (now - timedelta(days=signed)).date().isoformat() if signed else None
+        nda_exp = (now - timedelta(days=signed) + timedelta(days=term)).date().isoformat() if signed else None
+        db.execute("UPDATE companies SET deal_lead = ?, deal_team = ?, nda_signed_date = ?, nda_expiry_date = ? WHERE id = ?",
+                   (lead, team or None, nda_signed, nda_exp, company_ids[idx]))
+    # Tidewater: passed, with the reasoning a successor would otherwise never find.
+    db.execute(
+        "UPDATE companies SET pass_reason = ?, pass_notes = ?, revisit_date = ? WHERE id = ?",
+        ("Valuation gap",
+         "Seller anchored on 16x LTM EBITDA vs our 11x. Business quality fine; customs brokerage margins "
+         "under pressure from digital forwarders. Would re-engage below 12x or if ASEAN volumes recover.",
+         (now + timedelta(days=9)).date().isoformat(), company_ids[7]))
+    db.execute("UPDATE activity SET summary = summary || ' — Valuation gap' WHERE company_id = ? AND action = 'stage'",
+               (company_ids[7],))
+    for idx, owner in CONTACT_OWNERS.items():
+        db.execute("UPDATE contacts SET owner = ? WHERE id = ?", (owner, contact_ids[idx]))
+    # A strong relationship nobody has spoken to in a while.
+    db.execute("UPDATE contacts SET strength = 4, created_at = ? WHERE id = ?", ((now - timedelta(days=150)).isoformat(), contact_ids[12]))
