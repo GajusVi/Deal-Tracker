@@ -41,13 +41,26 @@ Firms lose deal context when senior people leave, and pass reasons, relationship
 
 ## Run it
 
-You need **Python 3.9 or newer** ([python.org](https://www.python.org/downloads/)).
+You need **Python 3.9 or newer** ([python.org](https://www.python.org/downloads/)). On Windows, tick **Add python.exe to PATH** in the installer.
+
+**1. Get the code.** Either clone it:
+
+```bash
+git clone https://github.com/GajusVi/Deal-Tracker.git
+cd Deal-Tracker
+```
+
+or, on GitHub, click **Code → Download ZIP** and unzip it somewhere you'll keep it. The app stores your data inside this folder.
+
+**2. Start it.**
 
 - **macOS:** double-click `Start Deal Tracker.command`, or run `./run.sh` in Terminal.
-- **Windows:** double-click `run.bat`.
+  - If macOS says the file is from an *unidentified developer*, right-click it, choose **Open**, then **Open** again. You only need to do this once.
+  - If you downloaded the ZIP and nothing happens, the launchers may have lost permission to run. Open Terminal in the folder and run `chmod +x run.sh "Start Deal Tracker.command"`.
+- **Windows:** double-click `run.bat`. If you see *Python was not found*, reinstall Python with **Add python.exe to PATH** ticked.
 - **Linux:** `./run.sh`
 
-The first launch installs its dependencies into a local `.venv` folder. After that it starts in a second or two and opens **http://127.0.0.1:5050** in your browser. On the empty dashboard, click **Load demo data** to explore a sample pipeline.
+**3. Use it.** The first launch installs dependencies into a local `.venv` folder, which takes about a minute. After that the app starts in a second or two and opens **http://127.0.0.1:5050** in your browser. Keep the terminal window open while you use the app, and close it to stop the app. On the empty dashboard, click **Explore with demo data** to look around a sample pipeline.
 
 Options: `./run.sh --port 8080`, `./run.sh --data /path/to/folder`, `./run.sh --no-browser`.
 
