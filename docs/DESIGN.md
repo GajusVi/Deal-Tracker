@@ -77,6 +77,17 @@ The goal is software that feels like a private bank's instrument: calm, precise,
 - **Real progress.** CIM analysis shows its actual steps as they complete.
 - **Peaks.** Closing a deal shows a short summary of the journey: days from first look, meetings held and people involved.
 
+## 6. Reading dense pages
+
+The first premium pass made the overview look calm but read slowly. Nine sections had equal weight, secondary text was small grey on grey, and charts were drawn where a table would answer faster. The rules we now follow on busy pages:
+
+- **One reading order.** The overview answers, top to bottom: what needs me today, what's coming up, where the pipeline stands, which deals are live, then the breakdowns. Breakdowns sit behind one tab switch rather than three charts side by side.
+- **Group with panels, not just hairlines.** Related rows sit in a white panel with a heading, so the eye can find the edge of a section on a grey canvas.
+- **Readable sizes.** Row text is 14 px ink, secondary lines 13 px in `--ink-2`. `--ink-3` is for timestamps and labels only, never for anything you need to read.
+- **Status in words.** Attention items carry "Urgent", "Soon" or "FYI" and a date ("Due Oct 12"), not only a coloured dot.
+- **Tables for comparison.** Pipeline by stage and live deals are tables with right-aligned, tabular figures and full stage names. A chart is used only when the shape matters more than the values.
+- **Subject first.** Rows lead with the company, then what happened, then the detail, without em-dashes or run-on labels.
+
 ## Sources
 1. Kurosu & Kashimura (1995), via [Laws of UX](https://lawsofux.com/aesthetic-usability-effect/) and [Wikipedia](https://en.wikipedia.org/wiki/Aesthetic%E2%80%93usability_effect). Later critique: [UXPA Journal](https://uxpajournal.org/?p=4392).
 2. Reber, Schwarz & Winkielman (2004), *Processing fluency and aesthetic pleasure*. [PDF](https://pages.ucsd.edu/~pwinkielman/reber-schwarz-winkielman-beauty-PSPR-2004.pdf)
