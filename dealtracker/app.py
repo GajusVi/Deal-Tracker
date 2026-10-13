@@ -136,6 +136,7 @@ def create_app(data_dir=None):
             "terminal_stages": sorted(dbm.TERMINAL_STAGES),
             "data_dir": app.config["DATA_DIR"],
             "demo": demo_counts(get_db()),
+            "record_items": [{"key": k, "label": label, "short": insights.CHECK_SHORT[k]} for k, label in insights.KNOWLEDGE_CHECKS],
         })
 
     @app.put("/api/settings")
@@ -240,6 +241,7 @@ def create_app(data_dir=None):
             "attention": insights.attention(db, s)[:12],
             "intermediaries": insights.intermediaries(db, stages)[:8],
             "knowledge": _avg([kn["score"] for cid, kn in insights.knowledge(db, live).items()]),
+            "records": insights.coverage(db, live),
             "team": insights.team_overview(db, s),
             "base_currency": s.get("base_currency", "USD"),
         })
@@ -273,6 +275,7 @@ def create_app(data_dir=None):
         kn = insights.knowledge(db, comps)
         for c in comps:
             c["knowledge"] = kn[c["id"]]["score"]
+            c["record"] = {k: kn[c["id"]][k] for k in ("done", "total", "missing")}
             st = stats.get(c["id"])
             c["meeting_count"] = st["n"] if st else 0
             c["last_meeting_at"] = st["last"] if st else None
@@ -819,11 +822,12 @@ def create_app(data_dir=None):
         comps = [_decorate_company(c) for c in rows(get_db().execute("SELECT * FROM companies ORDER BY name"))]
         kn = insights.knowledge(get_db(), comps)
         for c in comps:
-            c["knowledge"] = kn[c["id"]]["score"]
+            c["record"] = f'{kn[c["id"]]["done"]}/{kn[c["id"]]["total"]}'
+            c["record_missing"] = ", ".join(kn[c["id"]]["missing"])
         cols = ["id", "name", "codename", "stage", "status", "priority", "sector", "subsector", "deal_type",
                 "country", "region", "hq_city", "currency", "ev", "revenue", "ebitda", "ebitda_margin", "ev_ebitda",
                 "employees", "founded_year", "ownership", "advisor", "source", "deal_lead", "deal_team", "website",
-                "nda_signed_date", "nda_expiry_date", "pass_reason", "pass_notes", "revisit_date", "knowledge",
+                "nda_signed_date", "nda_expiry_date", "pass_reason", "pass_notes", "revisit_date", "record", "record_missing",
                 "next_step", "next_step_date", "tags", "created_at", "updated_at"]
         buf = io.StringIO()
         w = csv.DictWriter(buf, fieldnames=cols, extrasaction="ignore")

@@ -28,7 +28,7 @@ Deal CRMs ask people to type, and busy people stop typing. In a 2009 survey of 6
 - **Nothing slips.** NDA end dates, overdue next steps, deals with no lead and stale processes appear in one list.
 
 ## The handover
-Every live deal gets a **knowledge score**: lead, description, CIM facts, model, meeting notes, mapped people, and a next step or pass reason.
+Every live deal has a **deal record** of seven items: lead, description, CIM facts, model, meeting notes, mapped people, and a next step or pass reason. The app shows exactly which are missing.
 1. **See the gaps.** The handover pack lists every deal the person is on and what's undocumented.
 2. **Close them.** The departing person fills the gaps while they still can.
 3. **Generate the pack.** Deals, open questions, lessons, who to call and relationships to transfer, on one printable page.
@@ -39,7 +39,7 @@ Every live deal gets a **knowledge score**: lead, description, CIM facts, model,
 - Local edition free for one deal team. Team edition with a shared workspace, permissions and email/calendar capture, priced per seat. Optional AI analysis billed at cost through the firm's own Anthropic key. Pricing to be validated with design partners.
 
 ## Built today, and the next 90 days
-**Built:** pipeline, companies, meetings, contacts and a network diagram. CIM fact detection that runs offline, with optional Claude analysis. Versioned models. Knowledge scores, pass records, prior-look warnings, NDA tracking, handover packs and one-click reassignment. A printable IC one-pager.
+**Built:** pipeline, companies, meetings, contacts and a network diagram. CIM fact detection that runs offline, with optional Claude analysis. Versioned models. Deal-record checks, pass records, prior-look warnings, NDA tracking, handover packs and one-click reassignment. A printable IC one-pager.
 **Next:** pilot with 3–5 firms and measure knowledge coverage before and after. Add email and calendar capture and a shared team workspace. Run a handover drill: time how long a successor needs to get up to speed on an inherited deal, with and without the pack.
 
 ## The ask

@@ -1,5 +1,5 @@
 import { api, store } from '../api.js';
-import { html, $, logo, money, ago, fmtDate, ring, toast, errToast, withBusy, confirmDialog, options, initials, strength, ic } from '../ui.js';
+import { html, $, logo, money, ago, fmtDate, toast, errToast, withBusy, confirmDialog, options, initials, strength, ic, recordBar } from '../ui.js';
 import { setCrumbs } from '../app.js';
 import { contactView } from '../forms.js';
 
@@ -7,39 +7,47 @@ export async function renderTeam(view) {
   setCrumbs([{ label: 'Team & handover' }]);
   const [team, companies] = await Promise.all([api.get('/api/team'), api.get('/api/companies')]);
   const live = companies.filter((c) => !store.meta.terminal_stages.includes(c.stage) && c.status !== 'Passed');
-  const firmScore = live.length ? Math.round(live.reduce((a, c) => a + c.knowledge, 0) / live.length) : null;
-  const weakest = [...live].sort((a, b) => a.knowledge - b.knowledge).slice(0, 5);
+  const complete = live.filter((c) => !c.record.missing.length).length;
+  const gaps = live.reduce((a, c) => a + c.record.missing.length, 0);
+  const items = store.meta.record_items.map((it) => {
+    const missing = live.filter((c) => c.record.missing.includes(it.short));
+    return { ...it, have: live.length - missing.length, missing };
+  });
   view.innerHTML = String(html`
     <div class="page-head">
       <div><div class="eyebrow">Firm memory</div><h1>Team & handover</h1>
         <p>When someone leaves, their deals, relationships and judgement should stay with the firm.</p></div>
       <a class="btn ghost" href="#/settings">${ic('settings')}Manage team</a>
     </div>
-    <div class="memory">
-      <div class="memory-figure">
-        <div class="big">${firmScore ?? '–'}<small>%</small></div>
-        <p>of what a successor would need is on record across ${live.length} live deal${live.length === 1 ? '' : 's'}.</p>
-        <p class="muted">Each deal is checked for a lead, a description, CIM facts, a model, meeting notes, mapped people and a next step or pass reason. Anything missing lives only in someone's head or inbox.</p>
-      </div>
-      <div>
-        <div class="section-head"><h2>Most exposed</h2><span class="aside">lowest coverage first</span></div>
-        <div class="list">${weakest.map((c) => html`
-          <a class="list-item" href="#/company/${c.id}">${logo(c, 'sm')}<span class="grow"><span class="title">${c.name}</span><span class="meta">${c.deal_lead || 'No lead'} · ${c.stage}</span></span>${ring(c.knowledge, 22)}<b class="num" style="width:38px;text-align:right">${c.knowledge}%</b></a>`)}</div>
-      </div>
-    </div>
+
+    <section>
+      <div class="section-head"><h2>Deal records</h2><span class="aside">${complete} of ${live.length} live deals complete · ${gaps} item${gaps === 1 ? '' : 's'} missing</span></div>
+      <div class="table-wrap"><table class="table coverage">
+        <thead><tr><th>Item</th><th>On record</th><th>Missing on</th></tr></thead>
+        <tbody>${items.map((it) => html`<tr>
+          <td>${it.label}</td>
+          <td class="cov"><span class="cov-bar"><i style="width:${live.length ? (it.have / live.length) * 100 : 0}%"></i></span><b>${it.have}</b><small>of ${live.length}</small></td>
+          <td>${it.missing.length ? html`<span class="cov-list">${it.missing.map((c) => html`<a class="co-link" href="#/company/${c.id}"><span class="dot" style="background:${c.color}"></span>${c.name}</a>`)}</span>` : html`<span class="muted">All live deals</span>`}</td>
+        </tr>`)}</tbody>
+      </table></div>
+    </section>
+
     <section class="section">
-      <div class="section-head"><h2>People</h2><span class="aside">Open a person to see their handover pack</span></div>
-      <div class="people stagger">${team.map((m, i) => html`
-        <a class="person" href="#/team/${encodeURIComponent(m.name)}" style="--i:${i}">
-          <span class="avatar lg">${initials(m.name)}</span>
-          <span class="who"><b>${m.name}</b><small class="muted">${m.ev ? `${money(m.ev)} live EV` : 'No live deals'}</small></span>
-          <span class="n"><b>${m.live}</b><small>live</small></span>
-          <span class="n"><b>${m.deals}</b><small>all deals</small></span>
-          <span class="n"><b>${m.contacts}</b><small>relationships</small></span>
-          <span class="n mem">${ring(m.knowledge, 22)}<b>${m.knowledge ?? '–'}${m.knowledge != null ? '%' : ''}</b></span>
-          ${ic('chevronRight', 'chev')}
-        </a>`)}</div>
+      <div class="section-head"><h2>People</h2><span class="aside">Open someone to see their handover pack</span></div>
+      <div class="table-wrap"><table class="table people-table">
+        <thead><tr><th>Name</th><th class="r">Live deals</th><th class="r">Live EV</th><th class="r">Relationships</th><th class="r">Complete records</th><th class="r">Items missing</th><th></th></tr></thead>
+        <tbody>${team.map((m) => html`<tr data-href="#/team/${encodeURIComponent(m.name)}">
+          <td><div class="cell-co"><span class="avatar">${initials(m.name)}</span><b>${m.name}</b></div></td>
+          <td class="r num">${m.live}<span class="muted"> / ${m.deals}</span></td>
+          <td class="r num">${m.ev ? money(m.ev) : html`<span class="muted">–</span>`}</td>
+          <td class="r num">${m.contacts}</td>
+          <td class="r num">${m.live ? html`${m.complete}<span class="muted"> of ${m.live}</span>` : html`<span class="muted">–</span>`}</td>
+          <td class="r num ${m.gaps ? 'rec-missing' : 'muted'}">${m.gaps || '–'}</td>
+          <td class="r">${ic('chevronRight', 'chev')}</td>
+        </tr>`)}</tbody>
+      </table></div>
     </section>`);
+  view.querySelectorAll('tr[data-href]').forEach((tr) => tr.addEventListener('click', () => { location.hash = tr.dataset.href; }));
 }
 
 export async function renderHandover(view, member) {
@@ -63,7 +71,8 @@ export async function renderHandover(view, member) {
         <div><small class="muted">Live deals</small><b>${s.live}</b></div>
         <div><small class="muted">Relationships</small><b>${s.contacts}</b></div>
         <div><small class="muted">Strong (4–5)</small><b>${s.strong_relationships}</b></div>
-        ${ring(s.knowledge, 64)}
+        <div><small class="muted">Complete records</small><b>${s.complete}<span class="of"> of ${s.live}</span></b></div>
+        <div><small class="muted">Items missing</small><b class="${s.gaps ? 'rec-missing' : ''}">${s.gaps}</b></div>
       </div>
     </div>
 
@@ -75,7 +84,7 @@ export async function renderHandover(view, member) {
       <div class="ho-deal" style="--c:${d.color}">
         <div class="head">${logo(d)}<div style="flex:1;min-width:0"><h3><a href="#/company/${d.id}" style="color:inherit">${d.name}</a></h3>
           <div class="muted" style="font-size:13px">${[d.codename, d.role, d.stage, d.advisor ? `via ${d.advisor}` : null].filter(Boolean).join(' · ')}</div></div>
-          ${ring(d.knowledge.score, 48)}</div>
+          <div class="ho-rec" title="Deal record">${recordBar(d.knowledge.done, d.knowledge.total)}<span>${d.knowledge.done} of ${d.knowledge.total}</span></div></div>
         ${d.description ? html`<p class="prose" style="color:var(--ink-2)">${d.description}</p>` : ''}
         <div class="ho-grid">
           <div><h4>Where it stands</h4><ul>

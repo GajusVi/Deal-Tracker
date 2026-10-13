@@ -1,6 +1,7 @@
 """Demo workspace so the app has something to show on first launch."""
 import json
 import os
+import shutil
 from datetime import datetime, timedelta, timezone
 
 from . import db as dbm
@@ -281,8 +282,56 @@ CONTACT_OWNERS = {
 }
 
 
+SAMPLES = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "samples")
+# Later-stage sample deals carry models and CIM facts; early ones don't yet, as at a real firm.
+SAMPLE_MODELS = [  # company_idx, file in samples/, filename shown, days ago
+    (0, "Project_Atlas_LBO_v1.xlsx", "Project_Atlas_LBO_v1.xlsx", 30),
+    (0, "Project_Atlas_LBO_v2.xlsx", "Project_Atlas_LBO_v2.xlsx", 6),
+    (4, "Project_Atlas_LBO_v1.xlsx", "Project_Ember_LBO_v1.xlsx", 14),
+    (6, "Project_Atlas_LBO_v1.xlsx", "Project_Volt_LBO_v1.xlsx", 9),
+]
+SAMPLE_FACTS = (1, 2, 4, 6)  # company indexes that get CIM key facts from their headline numbers
+
+
+def _seed_documents(db, now, company_ids):
+    from .models_parser import parse_model
+    for idx, src, filename, days in SAMPLE_MODELS:
+        path = os.path.join(SAMPLES, src)
+        if not os.path.exists(path):
+            continue
+        stored = f"sample-{company_ids[idx]}-{filename}"
+        dest = os.path.join(dbm.upload_dir("docs"), stored)
+        shutil.copyfile(path, dest)
+        cid = company_ids[idx]
+        version = (db.execute("SELECT MAX(version) FROM documents WHERE company_id = ? AND kind = 'model'",
+                              (cid,)).fetchone()[0] or 0) + 1
+        ts = (now - timedelta(days=days)).isoformat()
+        cur = db.execute(
+            "INSERT INTO documents (company_id, kind, filename, stored_name, size, version, uploaded_at, analysis) "
+            "VALUES (?,?,?,?,?,?,?,?)",
+            (cid, "model", filename, stored, os.path.getsize(dest), version, ts, json.dumps(parse_model(dest, filename))))
+        db.execute("INSERT INTO activity (company_id, entity_type, entity_id, action, summary, created_at) VALUES (?,?,?,?,?,?)",
+                   (cid, "document", cur.lastrowid, "uploaded", f"Model v{version} uploaded: {filename}", ts))
+    for idx in SAMPLE_FACTS:
+        _name, _code, _color, _sector, country, _city, _stage, _prio, _dtype, _ev, rev, ebitda, emp, founded, adv, *_ = COMPANIES[idx]
+        sym, code = ("€", "EUR") if country in ("Germany", "Italy", "Netherlands") else ("£", "GBP") if country == "United Kingdom" else ("$", "USD")
+        facts = [
+            {"key": "revenue", "label": "Revenue (FY2025)", "display": f"{sym}{rev:g}m", "page": 4, "confidence": 0.85, "source": "rules"},
+            {"key": "ebitda", "label": "EBITDA (FY2025)", "display": f"{sym}{ebitda:g}m", "page": 4, "confidence": 0.85, "source": "rules"},
+            {"key": "ebitda_margin", "label": "EBITDA margin", "display": f"{ebitda / rev * 100:.1f}%", "page": 4, "confidence": 0.8, "source": "rules"},
+            {"key": "employees", "label": "Employees", "display": f"{emp:,}", "page": 2, "confidence": 0.75, "source": "rules"},
+            {"key": "founded_year", "label": "Founded", "display": str(founded), "page": 2, "confidence": 0.8, "source": "rules"},
+        ]
+        if adv:
+            facts.append({"key": "advisor", "label": "Sell-side advisor", "display": adv, "page": 1, "confidence": 0.75, "source": "rules"})
+        kf = {"facts": facts, "applied_at": (now - timedelta(days=20)).isoformat(), "currency": code}
+        db.execute("UPDATE companies SET key_facts = ? WHERE id = ? AND COALESCE(key_facts, '') IN ('', '{}')",
+                   (json.dumps(kf), company_ids[idx]))
+
+
 def _seed_memory(db, now, company_ids, contact_ids):
     dbm.set_setting("team_members", TEAM, db)
+    _seed_documents(db, now, company_ids)
     for idx, (lead, team, signed, term) in DEAL_TEAMS.items():
         nda_signed = (now - timedelta(days=signed)).date().isoformat() if signed else None
         nda_exp = (now - timedelta(days=signed) + timedelta(days=term)).date().isoformat() if signed else None
