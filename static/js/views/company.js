@@ -1,7 +1,7 @@
 import { api, store } from '../api.js';
 import {
   html, raw, $, $$, logo, money, mult, pct, num, ago, fmtDate, fmtDateTime, toast, errToast, withBusy, confirmDialog,
-  dropzone, dominantColor, ICONS, ic, fileExt, bytes, avatar, strength, sentimentChip, dateBlock, prioChip, modal, options, formValues, ring,
+  dropzone, dominantColor, ICONS, ic, fileExt, bytes, avatar, strength, sentimentChip, dateBlock, prioChip, modal, options, formValues,
 } from '../ui.js';
 import { companyForm, contactForm, meetingForm, meetingView, contactView, reviewCim, renderSeriesChart, moveStage, priorLooksBanner } from '../forms.js';
 import { networkGraph } from '../graph.js';
@@ -104,6 +104,8 @@ export async function renderCompany(view, id, tab = 'overview') {
 }
 
 // ------------------------------------------------------------------ overview
+const FIX_LABEL = { lead: 'Assign', description: 'Add', facts: 'Upload CIM', model: 'Upload', notes: 'Log meeting', people: 'Add people', decision: 'Add' };
+
 function overview(el, c, reload) {
   const kf = c.key_facts || {};
   const facts = (kf.facts || []).filter((f) => !['name', 'codename', 'description', 'sector', 'region'].includes(f.key));
@@ -140,9 +142,10 @@ function overview(el, c, reload) {
       </div>
       <div>
         <div class="panel panel-pad">
-          <div class="row" style="gap:16px;margin-bottom:16px">${ring(c.knowledge.score, 60)}
-            <div><h2>Deal memory</h2><p class="muted" style="margin:3px 0 0;font-size:12.5px">What a successor would inherit if ${c.deal_lead || 'the team'} moved on tomorrow.</p></div></div>
-          <ul class="checklist">${c.knowledge.checks.map((k) => html`<li class="${k.done ? '' : 'off'}"><span class="ck ${k.done ? 'on' : 'off'}">${k.done ? ic('check') : ''}</span>${k.label}</li>`)}</ul>
+          <div class="rec-head"><h2>Deal record</h2><span class="rec-count">${c.knowledge.done}<small> of ${c.knowledge.total}</small></span></div>
+          <p class="muted" style="margin:4px 0 12px;font-size:12.5px">What a successor would inherit if ${c.deal_lead || 'the team'} moved on tomorrow.</p>
+          <span class="rec-bar lg">${c.knowledge.checks.map((k) => html`<i class="${k.done ? 'on' : ''}" title="${k.label}"></i>`)}</span>
+          <ul class="checklist" style="margin-top:16px">${c.knowledge.checks.map((k) => html`<li class="${k.done ? '' : 'off'}"><span class="ck ${k.done ? 'on' : 'off'}">${k.done ? ic('check') : ''}</span><span class="grow">${k.label}</span>${k.done ? '' : html`<button class="fix" data-fix="${k.key}">${FIX_LABEL[k.key]}</button>`}</li>`)}</ul>
         </div>
         <div class="section">
           <div class="section-head"><h2>Deal details</h2></div>
@@ -178,9 +181,16 @@ function overview(el, c, reload) {
       </div>
     </div>`);
   renderSeriesChart($('#fin', el), kf.series, kf.currency || c.currency);
-  el.addEventListener('click', (e) => {
+  el.addEventListener('click', async (e) => {
     const m = e.target.closest('[data-m]');
     if (m) meetingView(+m.dataset.m, { onChange: () => reload() });
+    const fix = e.target.closest('[data-fix]');
+    if (!fix) return;
+    const k = fix.dataset.fix;
+    if (k === 'model' || k === 'facts') uploadDialog(c, reload, k === 'model' ? 'model' : 'cim');
+    else if (k === 'notes') { if (await meetingForm(null, { companyId: c.id })) reload(); }
+    else if (k === 'people') reload('people');
+    else if (await companyForm(c)) reload();
   });
   $('#del', el).addEventListener('click', async () => {
     if (!(await confirmDialog(`Delete ${c.name}? Its documents, models and history are removed. Meetings and contacts are kept.`))) return;
@@ -466,7 +476,7 @@ function renderOnePager(view, c) {
           ${c.contacts.length ? html`<h3>Key people</h3><dl class="kv">${c.contacts.slice(0, 6).map((p) => html`<dt>${p.name}</dt><dd>${[p.title, p.organization].filter(Boolean).join(', ')}${p.owner ? html` <span class="muted">· ${p.owner}</span>` : ''}</dd>`)}</dl>` : ''}
         </div>
       </div>
-      <div class="op-foot"><span>${firm ? `${firm} · ` : ''}Confidential — prepared with Deal Tracker</span><span>Deal memory ${c.knowledge.score}% captured</span></div>
+      <div class="op-foot"><span>${firm ? `${firm} · ` : ''}Confidential — prepared with Deal Tracker</span><span>Deal record ${c.knowledge.done} of ${c.knowledge.total} items</span></div>
     </div>`);
   renderSeriesChart($('#op-fin', view), kf.series, kf.currency || c.currency);
   $('#print', view).addEventListener('click', () => window.print());

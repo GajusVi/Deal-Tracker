@@ -185,6 +185,18 @@ def test_memory_features(client):
     assert {"nda", "overdue", "revisit", "owner", "cold"} <= kinds
     assert 0 < d["knowledge"] <= 100 and d["intermediaries"] and len(d["team"]) == 4
 
+    # Deal records are reported as concrete counts and named gaps, not just a score.
+    rec = d["records"]
+    assert rec["live"] == 7 and 0 < rec["complete"] < rec["live"]
+    assert rec["gaps"] == sum(len(i["missing"]) for i in rec["items"])
+    model = next(i for i in rec["items"] if i["key"] == "model")
+    assert model["have"] + len(model["missing"]) == rec["live"]
+    listed = {c["name"]: c["record"] for c in client.get("/api/companies").json}
+    assert listed["Northwind Analytics"]["missing"] == [] and listed["Northwind Analytics"]["done"] == 7
+    assert "deal lead" in listed["Brightpath Learning"]["missing"]
+    assert [i["short"] for i in client.get("/api/meta").json["record_items"]][3] == "model"
+    assert all({"complete", "gaps"} <= m.keys() for m in d["team"])
+
     # Prior looks: re-adding a passed company surfaces why it was passed.
     hits = client.get("/api/companies/similar?name=Tidewater Logistics Pte. Ltd.").json
     assert hits[0]["name"] == "Tidewater Logistics" and hits[0]["pass_reason"] == "Valuation gap"

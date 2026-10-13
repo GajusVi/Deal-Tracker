@@ -1,5 +1,5 @@
 import { api, store, loadMeta } from '../api.js';
-import { html, raw, $, $$, logo, money, num, ago, fmtDate, fmtTime, dateBlock, prioChip, toast, errToast, withBusy, ic, mult, parseDate, showTip, hideTip } from '../ui.js';
+import { html, raw, $, $$, logo, money, num, ago, fmtDate, fmtTime, dateBlock, prioChip, toast, errToast, withBusy, ic, mult, parseDate, showTip, hideTip, recordBar, missingText } from '../ui.js';
 import { hbars, columns } from '../charts.js';
 import { quickNew, setCrumbs } from '../app.js';
 import { contactView, hasDemo, clearDemo, demoSummary } from '../forms.js';
@@ -22,28 +22,13 @@ export function bindAttention(root, onChange) {
   });
 }
 
-// Count headline figures up once per session; respects reduced motion.
-function countUp(root) {
-  let seen = false;
-  try { seen = sessionStorage.getItem('dt-counted') === '1'; sessionStorage.setItem('dt-counted', '1'); } catch { /* ignore */ }
-  if (seen || matchMedia('(prefers-reduced-motion: reduce)').matches) return;
-  $$('[data-count]', root).forEach((el) => {
-    const target = +el.dataset.count, fmt = el.dataset.fmt, cur = el.dataset.cur;
-    const start = performance.now(), dur = 900;
-    const step = (t) => {
-      const p = Math.min(1, (t - start) / dur);
-      el.innerHTML = String(formatFig(target * (1 - Math.pow(1 - p, 4)), fmt, cur));
-      if (p < 1) requestAnimationFrame(step);
-    };
-    requestAnimationFrame(step);
-  });
-}
+// Headline figures are shown as they are: a working tool shouldn't perform its numbers.
 function formatFig(v, fmt, cur) {
   if (fmt === 'money') return money(v, cur);
   if (fmt === 'pct') return html`${Math.round(v)}<small>%</small>`;
   return num(Math.round(v));
 }
-const fig = (value, fmt = 'int', cur = '') => html`<span data-count="${value || 0}" data-fmt="${fmt}" data-cur="${cur}">${formatFig(value || 0, fmt, cur)}</span>`;
+const fig = (value, fmt = 'int', cur = '') => formatFig(value || 0, fmt, cur);
 
 export async function renderDashboard(view) {
   setCrumbs([{ label: 'Overview' }]);
@@ -93,7 +78,7 @@ export async function renderDashboard(view) {
       <div><div class="label">Pipeline value</div><div class="value">${fig(k.pipeline_ev, 'money', cur)}</div><div class="sub">${blended ? `${mult(blended)} blended EV/EBITDA` : 'enterprise value'}</div></div>
       <div><div class="label">Pipeline EBITDA</div><div class="value">${fig(k.pipeline_ebitda, 'money', cur)}</div><div class="sub">on ${money(k.pipeline_revenue, cur)} revenue</div></div>
       <div><div class="label">Meetings · 30 days</div><div class="value">${fig(k.meetings_30d)}</div><div class="sub">${d.upcoming_meetings.length} scheduled</div></div>
-      <a href="#/team"><div class="label">Knowledge captured</div><div class="value">${d.knowledge != null ? fig(d.knowledge, 'pct') : '—'}</div><div class="sub">would survive a departure</div></a>
+      <a href="#/team" title="Deals with lead, description, CIM facts, model, notes, people and next step all on record"><div class="label">Complete deal records</div><div class="value">${fig(d.records.complete)}<small>of ${d.records.live}</small></div><div class="sub">${d.records.gaps ? `${d.records.gaps} item${d.records.gaps === 1 ? '' : 's'} missing` : 'nothing missing'}</div></a>
     </div>
 
     <div class="grid grid-dash section">
@@ -145,7 +130,6 @@ export async function renderDashboard(view) {
   view.querySelectorAll('[data-qn]').forEach((b) => b.addEventListener('click', () => quickNew(b.dataset.qn)));
   $('#clear-demo', view)?.addEventListener('click', (e) => withBusy(e.currentTarget, () => clearDemo()));
   bindAttention($('#attn', view), () => renderDashboard(view));
-  countUp($('#strip', view));
   $$('.funnel i', view).forEach((b) => {
     const [stage, count, ev] = b.dataset.tip.split('|');
     b.addEventListener('mousemove', (e) => showTip(e, html`<b>${stage}</b><br>${count} deal(s) · ${ev}`));
@@ -225,7 +209,8 @@ export function companyCard(c, i = 0) {
       <div class="stats">
         <div><small class="muted">EV</small><b>${money(c.ev, c.currency)}</b></div>
         <div><small class="muted">EBITDA</small><b>${money(c.ebitda, c.currency)}</b></div>
-        <div><small class="muted">Memory</small><b>${c.knowledge != null ? `${c.knowledge}%` : '—'}</b></div>
+        <div><small class="muted">EV / EBITDA</small><b>${c.ev_ebitda != null ? mult(c.ev_ebitda) : '–'}</b></div>
       </div>
+      ${c.record && !store.meta.terminal_stages.includes(c.stage) && c.status !== 'Passed' ? html`<div class="rec-line" title="Deal record: ${c.record.done} of ${c.record.total} items">${recordBar(c.record.done, c.record.total)}<span class="${c.record.missing.length ? 'rec-missing' : 'rec-full'}">${missingText(c.record.missing)}</span></div>` : ''}
     </a>`;
 }

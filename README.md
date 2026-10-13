@@ -33,7 +33,7 @@ Firms lose deal context when senior people leave, and pass reasons, relationship
 
 | Feature | What it does |
 |---|---|
-| **Knowledge score** | Each live deal is checked for a lead, description, CIM facts, model, meeting notes, mapped people, and a next step or pass reason. Firm-wide and per-person scores appear on the dashboard and the Team page. |
+| **Deal records** | Each live deal is checked for seven items: a lead, description, CIM facts, model, meeting notes, mapped people, and a next step or pass reason. Cards show what is missing ("Missing model, meeting notes"). The Team page lists which deals lack which item, and how complete each person's deals are. |
 | **Pass record** | Moving a deal to *Passed* asks for the reason, what would change your mind and a revisit date. These appear on the company page and on the one-pager. |
 | **Prior-look warning** | Adding a company or reading a CIM checks names and codenames against past looks and shows who led it and why it was passed. |
 | **Needs attention** | NDA confidentiality ending or expired, overdue next steps, revisit dates, live deals with no lead, stale deals and strong relationships going cold. |

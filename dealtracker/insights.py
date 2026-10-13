@@ -22,6 +22,9 @@ KNOWLEDGE_CHECKS = [
     ("people", "People mapped"),
     ("decision", "Next step or pass reason"),
 ]
+# Short names used when listing what a deal record is missing ("Missing: model, meeting notes").
+CHECK_SHORT = {"lead": "deal lead", "description": "description", "facts": "CIM facts", "model": "model",
+               "notes": "meeting notes", "people": "people", "decision": "next step"}
 
 
 def norm_name(name):
@@ -100,7 +103,10 @@ def knowledge(db, companies=None):
         done = sum(checks.values())
         out[c["id"]] = {
             "score": round(done / len(checks) * 100),
-            "checks": [{"key": k, "label": label, "done": checks[k]} for k, label in KNOWLEDGE_CHECKS],
+            "done": done,
+            "total": len(checks),
+            "missing": [CHECK_SHORT[k] for k, _ in KNOWLEDGE_CHECKS if not checks[k]],
+            "checks": [{"key": k, "label": label, "short": CHECK_SHORT[k], "done": checks[k]} for k, label in KNOWLEDGE_CHECKS],
         }
     return out
 
@@ -197,7 +203,9 @@ def team_overview(db, settings):
         contacts = db.execute("SELECT COUNT(*) FROM contacts WHERE owner = ?", (m,)).fetchone()[0]
         score = round(sum(kn[c["id"]]["score"] for c in live) / len(live)) if live else None
         out.append({"name": m, "deals": len(mine), "live": len(live), "contacts": contacts,
-                    "ev": sum(c["ev"] or 0 for c in live), "knowledge": score})
+                    "ev": sum(c["ev"] or 0 for c in live), "knowledge": score,
+                    "complete": sum(1 for c in live if not kn[c["id"]]["missing"]),
+                    "gaps": sum(len(kn[c["id"]]["missing"]) for c in live)})
     return out
 
 
@@ -256,6 +264,24 @@ def handover(db, member):
             "deals": len(deals), "live": len(live), "contacts": len(contacts),
             "strong_relationships": sum(1 for c in contacts if (c["strength"] or 0) >= 4),
             "knowledge": round(sum(d["knowledge"]["score"] for d in live) / len(live)) if live else None,
+            "complete": sum(1 for d in live if not d["knowledge"]["missing"]),
+            "gaps": sum(len(d["knowledge"]["missing"]) for d in live),
             "open_next_steps": sum(1 for d in live if d["next_step"]),
         },
+    }
+
+
+def coverage(db, live):
+    """Firm-wide view of deal records: for each item, which live deals have it and which don't."""
+    kn = knowledge(db, live)
+    rows_ = []
+    for key, label in KNOWLEDGE_CHECKS:
+        missing = [{"id": c["id"], "name": c["name"]} for c in live
+                   if not next(x for x in kn[c["id"]]["checks"] if x["key"] == key)["done"]]
+        rows_.append({"key": key, "label": label, "have": len(live) - len(missing), "missing": missing})
+    return {
+        "live": len(live),
+        "complete": sum(1 for c in live if not kn[c["id"]]["missing"]),
+        "gaps": sum(len(kn[c["id"]]["missing"]) for c in live),
+        "items": rows_,
     }

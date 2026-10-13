@@ -34,7 +34,8 @@ The goal is software that feels like a private bank's instrument: calm, precise,
 **Typography**
 - UI text uses the system face: SF Pro on Apple devices, Segoe UI Variable on Windows. Body is 14 px; secondary text is 13 px.
 - Display text uses a serif: `ui-serif` (Apple's New York on macOS and iOS), falling back to the bundled Source Serif 4. It appears in page titles, company names and the one-pager, and nowhere else.
-- Numbers use tabular figures. Large figures are set light (weight 300–400), never bold.
+- Numbers use tabular figures in the UI sans at weight 600, sized for reading and comparing (19–24 px for headline figures), the way a data room or terminal sets them. Thin display numerals look good on a slide but are harder to scan and read as decoration.
+- Scores are shown as the facts behind them. A deal record is "5 of 7" plus what is missing ("Missing model, meeting notes"), not "71%". A firm-wide view is a table of which deals lack which item, not one big percentage.
 - Labels are sentence case. Uppercase is used only for 11 px eyebrows, with +0.06em tracking.
 
 **Colour**
@@ -64,7 +65,7 @@ The goal is software that feels like a private bank's instrument: calm, precise,
 - Easing: `cubic-bezier(.16, 1, .3, 1)`, an exponential ease-out. Things arrive quickly and settle softly.
 - Page changes use the View Transitions API: an 8 px rise with a cross-fade.
 - Lists stagger in on first view: 16 ms per row, at most 10 rows.
-- Headline figures count up once per session.
+- Figures never animate. Numbers are read and compared, not performed.
 - Only `transform` and `opacity` are animated. `prefers-reduced-motion` turns all of this off.
 
 ## 5. Behaviour
