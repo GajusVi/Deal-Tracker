@@ -86,6 +86,7 @@ The first premium pass made the overview look calm but read slowly. Nine section
 - **Readable sizes.** Row text is 14 px ink, secondary lines 13 px in `--ink-2`. `--ink-3` is for timestamps and labels only, never for anything you need to read.
 - **Status in words.** Attention items carry "Urgent", "Soon" or "FYI" and a date ("Due Oct 12"), not only a coloured dot.
 - **Tables for comparison.** Pipeline by stage and live deals are tables with right-aligned, tabular figures and full stage names. A chart is used only when the shape matters more than the values.
+- **Every number is a way in.** Each key figure on the overview is a tile that opens where the number comes from (Pipeline, Companies sorted by EV or EBITDA, Meetings, Team), with the destination named on the tile. Facts in the summary sentence are links too. No native tooltips sit on top of figures.
 - **Subject first.** Rows lead with the company, then what happened, then the detail, without em-dashes or run-on labels.
 
 ## Sources

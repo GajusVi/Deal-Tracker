@@ -921,3 +921,39 @@ code.path { display: block; font: 12px/1.5 var(--mono); padding: 8px 10px; borde
   .feed-row { flex-direction: column; gap: 2px; }
   .dash-panel { padding: 4px 16px 6px; }
 }
+
+/* overview header: title and date on one line, summary facts are links */
+.ov-head { display: flex; gap: 24px; align-items: flex-end; justify-content: space-between; flex-wrap: wrap; margin-bottom: 24px; }
+.ov-title { display: flex; align-items: baseline; gap: 14px; flex-wrap: wrap; }
+.ov-date { font-size: 14px; color: var(--ink-2); }
+.ov-summary { margin: 8px 0 0; font-size: 15px; color: var(--ink-2); max-width: 680px; }
+.ov-summary a, .ov-jump { color: var(--ink); font-weight: 600; text-decoration: underline; text-decoration-color: var(--line-2); text-underline-offset: 3px; text-decoration-thickness: 1.5px; }
+.ov-jump { border: 0; background: none; padding: 0; font: inherit; font-weight: 600; cursor: pointer; color: var(--bad-ink); text-decoration-color: color-mix(in srgb, var(--bad) 35%, transparent); }
+.ov-summary a:hover, .ov-jump:hover { text-decoration-color: currentColor; }
+
+/* key figures: each tile is a link to where the number comes from */
+.kpis { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.kpi { position: relative; display: flex; flex-direction: column; padding: 16px 18px 14px; background: var(--surface); border: 1px solid var(--line); border-radius: var(--r-2); color: var(--ink); transition: border-color var(--dur-1), box-shadow var(--dur-2) var(--ease), transform var(--dur-2) var(--ease); }
+.kpi:hover { border-color: var(--line-2); box-shadow: var(--shadow-2); transform: translateY(-1px); }
+.kpi:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.kpi .label { font-size: 13px; font-weight: 500; color: var(--ink-2); }
+.kpi .value { font: 600 26px/1.15 var(--sans); letter-spacing: -.02em; margin-top: 8px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.kpi .value small { font-size: 15px; font-weight: 500; color: var(--ink-2); margin-left: 4px; letter-spacing: 0; }
+.kpi .sub { font-size: 13px; color: var(--ink-2); margin-top: 4px; }
+.kpi .go { display: flex; align-items: center; gap: 4px; margin-top: 14px; padding-top: 10px; border-top: 1px solid var(--line); font-size: 12.5px; font-weight: 500; color: var(--ink-2); }
+.kpi .go svg.i { width: 13px; height: 13px; margin-left: auto; transition: transform var(--dur-2) var(--ease); }
+.kpi:hover .go { color: var(--accent-ink); }
+.kpi:hover .go svg.i { transform: translateX(3px); }
+
+.dash-panel.flash { animation: flash 1.2s var(--ease); }
+@keyframes flash { 0%, 40% { box-shadow: 0 0 0 3px var(--accent-soft), 0 0 0 1px var(--accent); } 100% { box-shadow: none; } }
+
+@media (max-width: 1100px) { .kpis { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 600px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; } .kpi { padding: 12px 14px; } .kpi .value { font-size: 22px; } }
+#attn-panel { scroll-margin-top: 72px; }
+@media (max-width: 600px) {
+  .kpi .go { position: absolute; top: 12px; right: 12px; margin: 0; padding: 0; border: 0; font-size: 0; }
+  .kpi .go svg.i { width: 15px; height: 15px; }
+  .kpi .label { padding-right: 18px; }
+  .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
+}

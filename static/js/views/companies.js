@@ -7,6 +7,13 @@ const state = { q: '', stage: '', sector: '', region: '', priority: '', mode: 'g
 try { Object.assign(state, JSON.parse(localStorage.getItem('dt-companies') || '{}')); } catch { /* ignore */ }
 const persist = () => { try { localStorage.setItem('dt-companies', JSON.stringify({ mode: state.mode, sort: state.sort, asc: state.asc })); } catch { /* ignore */ } };
 
+// Other views can open the list in a given view, e.g. the overview's "Pipeline value" opens it as a table sorted by EV.
+export function openCompanies({ mode, sort, asc = false } = {}) {
+  Object.assign(state, { q: '', stage: '', sector: '', region: '', priority: '' }, mode ? { mode } : {}, sort ? { sort, asc } : {});
+  persist();
+  location.hash = '#/companies';
+}
+
 const COLS = [
   ['name', 'Company'], ['stage', 'Stage'], ['sector', 'Sector'], ['country', 'Country'], ['ev', 'EV', 'r'], ['revenue', 'Revenue', 'r'],
   ['ebitda', 'EBITDA', 'r'], ['ebitda_margin', 'Margin', 'r'], ['ev_ebitda', 'EV/EBITDA', 'r'], ['meeting_count', 'Mtgs', 'r'], ['updated_at', 'Updated', 'r'],

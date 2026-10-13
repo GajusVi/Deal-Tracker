@@ -3,6 +3,7 @@ import { html, raw, $, $$, logo, money, num, ago, fmtDate, fmtTime, dateBlock, p
 import { hbars, columns } from '../charts.js';
 import { quickNew, setCrumbs } from '../app.js';
 import { contactView, hasDemo, clearDemo, demoSummary } from '../forms.js';
+import { openCompanies } from './companies.js';
 
 const ATTN_ICON = { overdue: 'timer', nda: 'nda', revisit: 'revisit', stale: 'stale', owner: 'noLead', cold: 'cold' };
 const prettyDates = (s) => (s || '').replace(/\d{4}-\d{2}-\d{2}/g, (d) => fmtDate(d, { day: 'numeric', month: 'short', year: 'numeric' }));
@@ -40,6 +41,16 @@ function formatFig(v, fmt, cur) {
 }
 const fig = (value, fmt = 'int', cur = '') => formatFig(value || 0, fmt, cur);
 
+// A key figure that is also the way into its detail: the whole tile is the link.
+function kpi({ href, open, label, value, sub, to }) {
+  return html`<a class="kpi" href="${href || '#/companies'}" ${open ? html`data-open="${open}"` : ''} aria-label="${label}. Open ${to}">
+    <span class="label">${label}</span>
+    <span class="value">${value}</span>
+    <span class="sub">${sub}</span>
+    <span class="go">${to}${ic('arrowRight')}</span>
+  </a>`;
+}
+
 export async function renderDashboard(view) {
   setCrumbs([{ label: 'Overview' }]);
   const [d, companies] = await Promise.all([api.get('/api/dashboard'), api.get('/api/companies')]);
@@ -66,34 +77,35 @@ export async function renderDashboard(view) {
   const stageOrder = store.meta.settings.stages;
   const deals = [...live].sort((a, b) => stageOrder.indexOf(b.stage) - stageOrder.indexOf(a.stage) || (b.ev || 0) - (a.ev || 0));
   const today = new Date().toISOString().slice(0, 10);
-  const sentence = `${k.live_deals} live deal${k.live_deals === 1 ? '' : 's'} worth ${money(k.pipeline_ev, cur)} in enterprise value. `
-    + (urgent ? `${urgent} item${urgent === 1 ? '' : 's'} need${urgent === 1 ? 's' : ''} your attention today.` : 'Nothing urgent today.');
   const ATTN_SHOWN = 5;
 
   view.innerHTML = String(html`
     ${hasDemo() ? html`<div class="banner"><span class="ico">${ic('layers')}</span>
       <div style="flex:1;min-width:0"><b>You're exploring sample data</b><p>${demoSummary()} are examples. Clearing them keeps anything you've added.</p></div>
       <button class="btn sm" id="clear-demo">Clear sample data</button></div>` : ''}
-    <div class="page-head">
-      <div><span class="eyebrow">${new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</span>
-        <h1>Overview</h1><p>${sentence}</p></div>
+    <header class="ov-head">
+      <div>
+        <div class="ov-title"><h1>Overview</h1><span class="ov-date">${new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</span></div>
+        <p class="ov-summary"><a href="#/pipeline">${k.live_deals} live deal${k.live_deals === 1 ? '' : 's'}</a> worth ${money(k.pipeline_ev, cur)} in enterprise value.
+          ${urgent ? html`<button type="button" class="ov-jump" id="jump-attn">${urgent} item${urgent === 1 ? '' : 's'} need${urgent === 1 ? 's' : ''} your attention today</button>.` : 'Nothing urgent today.'}</p>
+      </div>
       <div class="btn-row">
         <button class="btn" data-qn="meeting">${ic('meetings')}Log meeting</button>
         <button class="btn" data-qn="cim">${ic('scan')}From CIM</button>
         <button class="btn primary" data-qn="company">${ic('plus')}Add company</button>
       </div>
-    </div>
+    </header>
 
-    <div class="strip" id="strip">
-      <div><div class="label">Live deals</div><div class="value">${fig(k.live_deals)}</div><div class="sub">${k.high_priority} high priority</div></div>
-      <div><div class="label">Pipeline value</div><div class="value">${fig(k.pipeline_ev, 'money', cur)}</div><div class="sub">${blended ? `${mult(blended)} blended EV/EBITDA` : 'enterprise value'}</div></div>
-      <div><div class="label">Pipeline EBITDA</div><div class="value">${fig(k.pipeline_ebitda, 'money', cur)}</div><div class="sub">on ${money(k.pipeline_revenue, cur)} revenue</div></div>
-      <div><div class="label">Meetings, last 30 days</div><div class="value">${fig(k.meetings_30d)}</div><div class="sub">${d.upcoming_meetings.length} scheduled</div></div>
-      <a href="#/team" title="Deals with lead, description, CIM facts, model, notes, people and next step all on record"><div class="label">Complete deal records</div><div class="value">${fig(d.records.complete)}<small>of ${d.records.live}</small></div><div class="sub">${d.records.gaps ? `${d.records.gaps} item${d.records.gaps === 1 ? '' : 's'} missing` : 'nothing missing'}</div></a>
-    </div>
+    <nav class="kpis" aria-label="Key figures">
+      ${kpi({ href: '#/pipeline', label: 'Live deals', value: fig(k.live_deals), sub: `${k.high_priority} high priority`, to: 'Pipeline' })}
+      ${kpi({ open: 'ev', label: 'Pipeline value', value: fig(k.pipeline_ev, 'money', cur), sub: blended ? `${mult(blended)} blended EV/EBITDA` : 'Enterprise value', to: 'Companies by EV' })}
+      ${kpi({ open: 'ebitda', label: 'Pipeline EBITDA', value: fig(k.pipeline_ebitda, 'money', cur), sub: `On ${money(k.pipeline_revenue, cur)} revenue`, to: 'Companies by EBITDA' })}
+      ${kpi({ href: '#/meetings', label: 'Meetings, last 30 days', value: fig(k.meetings_30d), sub: `${d.upcoming_meetings.length} scheduled`, to: 'Meetings' })}
+      ${kpi({ href: '#/team', label: 'Complete deal records', value: html`${fig(d.records.complete)}<small>of ${d.records.live}</small>`, sub: d.records.gaps ? `${d.records.gaps} item${d.records.gaps === 1 ? '' : 's'} missing` : 'Nothing missing', to: 'Team & handover' })}
+    </nav>
 
     <div class="dash-row">
-      <section class="panel dash-panel">
+      <section class="panel dash-panel" id="attn-panel">
         <div class="panel-head"><h2>Needs attention</h2>${d.attention.length ? html`<span class="count">${d.attention.length}</span>` : ''}</div>
         <div id="attn">${attentionList(d.attention.slice(0, ATTN_SHOWN))}</div>
         ${d.attention.length > ATTN_SHOWN ? html`<button class="panel-more" id="attn-more">Show all ${d.attention.length}</button>` : ''}
@@ -153,6 +165,12 @@ export async function renderDashboard(view) {
     </section>`);
 
   view.querySelectorAll('[data-qn]').forEach((b) => b.addEventListener('click', () => quickNew(b.dataset.qn)));
+  view.querySelectorAll('[data-open]').forEach((a) => a.addEventListener('click', (e) => { e.preventDefault(); openCompanies({ mode: 'table', sort: a.dataset.open }); }));
+  $('#jump-attn', view)?.addEventListener('click', () => {
+    const p = $('#attn-panel', view);
+    p.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'start' });
+    p.classList.remove('flash'); void p.offsetWidth; p.classList.add('flash');
+  });
   $('#clear-demo', view)?.addEventListener('click', (e) => withBusy(e.currentTarget, () => clearDemo()));
   bindAttention($('#attn', view), () => renderDashboard(view));
   $('#attn-more', view)?.addEventListener('click', (e) => { $('#attn', view).innerHTML = String(attentionList(d.attention)); e.currentTarget.remove(); });
