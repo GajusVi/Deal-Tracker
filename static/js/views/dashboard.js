@@ -1,5 +1,5 @@
 import { api, store, loadMeta } from '../api.js';
-import { html, raw, $, $$, logo, money, num, ago, fmtDate, fmtTime, dateBlock, prioChip, toast, errToast, withBusy, ic, mult, parseDate, showTip, hideTip, recordBar, missingText } from '../ui.js';
+import { html, raw, $, $$, logo, money, num, ago, fmtDate, fmtTime, dateBlock, prioChip, toast, errToast, withBusy, ic, mult, parseDate, recordBar, missingText } from '../ui.js';
 import { hbars, columns } from '../charts.js';
 import { quickNew, setCrumbs } from '../app.js';
 import { contactView, hasDemo, clearDemo, demoSummary } from '../forms.js';
@@ -7,13 +7,23 @@ import { contactView, hasDemo, clearDemo, demoSummary } from '../forms.js';
 const ATTN_ICON = { overdue: 'timer', nda: 'nda', revisit: 'revisit', stale: 'stale', owner: 'noLead', cold: 'cold' };
 const prettyDates = (s) => (s || '').replace(/\d{4}-\d{2}-\d{2}/g, (d) => fmtDate(d, { day: 'numeric', month: 'short', year: 'numeric' }));
 
+const SEVERITY = { 3: ['Urgent', 'urgent'], 2: ['Soon', 'soon'], 1: ['FYI', 'fyi'] };
+const DATE_LABEL = { overdue: 'Due', nda: null, revisit: 'Revisit', stale: 'Last touch', cold: 'Last met' };
+const shortDate = (d) => fmtDate(d, { day: 'numeric', month: 'short' });
+
 export function attentionList(items) {
   if (!items.length) return html`<div class="empty" style="padding:28px 0">${ic('checkCircle')}<p style="margin:0">Nothing needs you right now.</p></div>`;
-  return html`<div class="attn stagger">${items.map((a, i) => html`
-    <a class="attn-item" style="--i:${i}" ${a.company_id ? html`href="#/company/${a.company_id}"` : html`data-contact="${a.contact_id}"`}>
-      <span class="attn-ico s${a.severity}" aria-hidden="true">${ic(ATTN_ICON[a.kind] || 'alert')}</span>
-      <span style="flex:1;min-width:0"><span class="t">${a.title}</span><span class="d">${a.company_name ? html`${a.company_name} · ` : ''}${prettyDates(a.detail)}</span></span>
-    </a>`)}</div>`;
+  return html`<div class="attn">${items.map((a) => {
+    const [sev, cls] = SEVERITY[a.severity] || SEVERITY[1];
+    const expired = a.kind === 'nda' && a.date && a.date < new Date().toISOString().slice(0, 10);
+    const when = a.date ? `${a.kind === 'nda' ? (expired ? 'Expired' : 'Expires') : DATE_LABEL[a.kind] || ''} ${shortDate(a.date)}`.trim() : '';
+    return html`
+    <a class="attn-row" ${a.company_id ? html`href="#/company/${a.company_id}"` : html`data-contact="${a.contact_id}"`}>
+      <span class="sev ${cls}">${sev}</span>
+      <span class="what"><b>${a.company_name || a.contact_name || ''}</b><span>${a.title}<small> · ${a.detail}</small></span></span>
+      <span class="when ${cls === 'urgent' ? 'urgent' : ''}">${when}</span>
+    </a>`;
+  })}</div>`;
 }
 export function bindAttention(root, onChange) {
   root.addEventListener('click', (e) => {
@@ -42,8 +52,6 @@ export async function renderDashboard(view) {
   const terminal = store.meta.terminal_stages;
   const live = companies.filter((c) => !terminal.includes(c.stage) && c.status !== 'Passed');
   const urgent = d.attention.filter((a) => a.severity >= 3).length;
-  const prioRank = { High: 0, Medium: 1, Low: 2 };
-  const featured = [...live].sort((a, b) => (prioRank[a.priority] ?? 3) - (prioRank[b.priority] ?? 3) || (b.ev || 0) - (a.ev || 0)).slice(0, 6);
   const blended = k.pipeline_ebitda ? k.pipeline_ev / k.pipeline_ebitda : null;
 
   // Coming up: next steps and meetings in one chronological agenda.
@@ -53,11 +61,14 @@ export async function renderDashboard(view) {
     ...d.upcoming_meetings.map((m) => ({ when: m.starts_at, title: m.title, sub: [fmtTime(m.starts_at), m.meeting_type].filter(Boolean).join(' · '), href: m.company_id ? `#/company/${m.company_id}/meetings` : '#/meetings', kind: 'Meeting' })),
   ].filter((a) => (parseDate(a.when) || 0) <= horizon || a.overdue).sort((a, b) => String(a.when).localeCompare(String(b.when))).slice(0, 7);
 
-  // Pipeline funnel: share of EV per live stage.
   const flow = d.by_stage.filter((x) => !terminal.includes(x.stage));
-  const flowEv = flow.reduce((a, x) => a + (x.ev || 0), 0) || 1;
+  const flowEv = Math.max(...flow.map((x) => x.ev || 0), 1);
+  const stageOrder = store.meta.settings.stages;
+  const deals = [...live].sort((a, b) => stageOrder.indexOf(b.stage) - stageOrder.indexOf(a.stage) || (b.ev || 0) - (a.ev || 0));
+  const today = new Date().toISOString().slice(0, 10);
   const sentence = `${k.live_deals} live deal${k.live_deals === 1 ? '' : 's'} worth ${money(k.pipeline_ev, cur)} in enterprise value. `
     + (urgent ? `${urgent} item${urgent === 1 ? '' : 's'} need${urgent === 1 ? 's' : ''} your attention today.` : 'Nothing urgent today.');
+  const ATTN_SHOWN = 5;
 
   view.innerHTML = String(html`
     ${hasDemo() ? html`<div class="banner"><span class="ico">${ic('layers')}</span>
@@ -77,79 +88,101 @@ export async function renderDashboard(view) {
       <div><div class="label">Live deals</div><div class="value">${fig(k.live_deals)}</div><div class="sub">${k.high_priority} high priority</div></div>
       <div><div class="label">Pipeline value</div><div class="value">${fig(k.pipeline_ev, 'money', cur)}</div><div class="sub">${blended ? `${mult(blended)} blended EV/EBITDA` : 'enterprise value'}</div></div>
       <div><div class="label">Pipeline EBITDA</div><div class="value">${fig(k.pipeline_ebitda, 'money', cur)}</div><div class="sub">on ${money(k.pipeline_revenue, cur)} revenue</div></div>
-      <div><div class="label">Meetings · 30 days</div><div class="value">${fig(k.meetings_30d)}</div><div class="sub">${d.upcoming_meetings.length} scheduled</div></div>
+      <div><div class="label">Meetings, last 30 days</div><div class="value">${fig(k.meetings_30d)}</div><div class="sub">${d.upcoming_meetings.length} scheduled</div></div>
       <a href="#/team" title="Deals with lead, description, CIM facts, model, notes, people and next step all on record"><div class="label">Complete deal records</div><div class="value">${fig(d.records.complete)}<small>of ${d.records.live}</small></div><div class="sub">${d.records.gaps ? `${d.records.gaps} item${d.records.gaps === 1 ? '' : 's'} missing` : 'nothing missing'}</div></a>
     </div>
 
-    <div class="grid grid-dash section">
-      <div>
-        <div class="section-head"><h2>Needs attention</h2><span class="aside">${d.attention.length ? `${d.attention.length} open` : ''}</span></div>
-        <div id="attn">${attentionList(d.attention.slice(0, 6))}</div>
-
-        <div class="section">
-          <div class="section-head"><h2>Pipeline</h2><a class="aside link" href="#/pipeline">Open board</a></div>
-          <div class="funnel" role="img" aria-label="Enterprise value by stage">${flow.map((x, i) => html`<i style="width:${Math.max(x.ev ? (x.ev / flowEv) * 100 : 0, x.count ? 1.5 : 0)}%;--o:${(0.3 + (0.7 * (i + 1)) / flow.length).toFixed(2)}" data-tip="${x.stage}|${x.count}|${money(x.ev, cur)}"></i>`)}</div>
-          <div class="funnel-rows">${flow.map((x) => html`<a href="#/pipeline" title="${x.stage}"><div class="s">${x.stage}</div><div class="n">${x.count}</div><div class="v">${x.ev ? money(x.ev, cur) : '—'}</div></a>`)}</div>
-        </div>
-      </div>
-      <div>
-        <div class="section-head"><h2>Coming up</h2><span class="aside">next three weeks</span></div>
-        ${agenda.length ? html`<div class="list stagger">${agenda.map((a, i) => html`
-          <a class="list-item" href="${a.href}" style="--i:${i}">${dateBlock(a.when)}
-            <span class="grow"><span class="title">${a.title}</span><span class="meta">${a.kind} · ${a.sub || ''}</span></span>
-            ${a.overdue ? html`<span class="chip neg">Overdue</span>` : ''}</a>`)}</div>`
-          : html`<p class="muted">Nothing scheduled. Set next steps on deals to see them here.</p>`}
-
-        <div class="section">
-          <div class="section-head"><h2>Recent activity</h2></div>
-          <div class="timeline">${d.recent_activity.slice(0, 6).map((a) => html`
-            <div class="tl-item" style="--c:${a.company_color || 'var(--ink-3)'}">
-              <div class="what">${a.company_name ? html`<a href="#/company/${a.company_id}">${a.company_name}</a> · ` : ''}<span class="t2">${a.summary}</span></div>
-              <div class="when" title="${new Date(a.created_at).toLocaleString()}">${ago(a.created_at)}</div>
-            </div>`)}</div>
-        </div>
-      </div>
+    <div class="dash-row">
+      <section class="panel dash-panel">
+        <div class="panel-head"><h2>Needs attention</h2>${d.attention.length ? html`<span class="count">${d.attention.length}</span>` : ''}</div>
+        <div id="attn">${attentionList(d.attention.slice(0, ATTN_SHOWN))}</div>
+        ${d.attention.length > ATTN_SHOWN ? html`<button class="panel-more" id="attn-more">Show all ${d.attention.length}</button>` : ''}
+      </section>
+      <section class="panel dash-panel">
+        <div class="panel-head"><h2>Coming up</h2><span class="aside">next 3 weeks</span></div>
+        ${agenda.length ? html`<div class="agenda">${agenda.map((a) => html`
+          <a class="agenda-row" href="${a.href}">${dateBlock(a.when)}
+            <span class="what"><b>${a.title}</b><small>${a.kind === 'Meeting' ? a.sub : `Next step · ${a.sub || ''}`}</small></span>
+            ${a.overdue ? html`<span class="sev urgent">Overdue</span>` : ''}</a>`)}</div>`
+          : html`<p class="muted" style="padding:8px 0 4px">Nothing scheduled. Set next steps on deals to see them here.</p>`}
+      </section>
     </div>
 
-    <div class="grid grid-3 section">
-      <div><div class="section-head"><h2>By sector</h2><span class="aside">live EV</span></div><div id="ch-sector"></div></div>
-      <div><div class="section-head"><h2>By region</h2><span class="aside">live EV</span></div><div id="ch-region"></div></div>
-      <div><div class="section-head"><h2>Intermediaries</h2><span class="aside">deals shown</span></div><div id="ch-adv"></div></div>
+    <div class="dash-row">
+      <section class="panel dash-panel">
+        <div class="panel-head"><h2>Pipeline by stage</h2><a class="aside link" href="#/pipeline">Open board ${ic('arrowRight')}</a></div>
+        <table class="stage-table">
+          <thead><tr><th>Stage</th><th class="r">Deals</th><th class="r">Enterprise value</th><th></th></tr></thead>
+          <tbody>${flow.map((x) => html`<tr class="${x.count ? '' : 'zero'}">
+            <td>${x.stage}</td><td class="r num">${x.count}</td><td class="r num">${x.ev ? money(x.ev, cur) : '–'}</td>
+            <td class="bar-cell"><span class="bar"><i style="width:${x.ev ? Math.max((x.ev / flowEv) * 100, 2) : 0}%"></i></span></td></tr>`)}</tbody>
+          <tfoot><tr><td>Total live</td><td class="r num">${k.live_deals}</td><td class="r num">${money(k.pipeline_ev, cur)}</td><td></td></tr></tfoot>
+        </table>
+      </section>
+      <section class="panel dash-panel">
+        <div class="panel-head"><h2>Recent activity</h2></div>
+        <div class="feed">${d.recent_activity.slice(0, 7).map((a) => html`
+          <div class="feed-row">
+            <span class="what">${a.company_name ? html`<a href="#/company/${a.company_id}"><b>${a.company_name}</b></a>` : ''}<span>${a.summary.replace(' → ', ' to ')}</span></span>
+            <span class="when" title="${new Date(a.created_at).toLocaleString()}">${ago(a.created_at)}</span>
+          </div>`)}</div>
+      </section>
     </div>
 
-    <div class="section">
-      <div class="section-head"><h2>Live deals</h2><a class="aside link" href="#/companies">All companies</a></div>
-      <div class="co-cards stagger">${featured.map((c, i) => companyCard(c, i))}</div>
-    </div>
+    <section class="section">
+      <div class="section-head"><h2>Live deals</h2><a class="aside link" href="#/companies">All companies ${ic('arrowRight')}</a></div>
+      <div class="table-wrap panel"><table class="table deals-table">
+        <thead><tr><th>Company</th><th>Stage</th><th class="r">EV</th><th class="r">EBITDA</th><th class="r">EV / EBITDA</th><th>Lead</th><th>Next step</th><th>Deal record</th></tr></thead>
+        <tbody>${deals.map((c) => html`<tr data-href="#/company/${c.id}">
+          <td><div class="cell-co">${logo(c, 'sm')}<div><b>${c.name}</b><small class="muted">${c.codename || c.sector || ''}</small></div>${c.priority === 'High' ? html`<span class="prio" title="High priority">${ic('flag')}</span>` : ''}</div></td>
+          <td>${c.stage}</td>
+          <td class="r num">${money(c.ev, c.currency)}</td>
+          <td class="r num">${money(c.ebitda, c.currency)}</td>
+          <td class="r num">${c.ev_ebitda != null ? mult(c.ev_ebitda) : '–'}</td>
+          <td>${c.deal_lead || html`<span class="overdue">None</span>`}</td>
+          <td class="next">${c.next_step ? html`<span>${c.next_step}</span>${c.next_step_date ? html`<small class="${c.next_step_date < today ? 'overdue' : 'muted'}">${shortDate(c.next_step_date)}</small>` : ''}` : html`<span class="muted">–</span>`}</td>
+          <td><span class="rec-cell" title="${c.record.missing.length ? `Missing ${c.record.missing.join(', ')}` : 'Complete'}">${recordBar(c.record.done, c.record.total)}<span class="${c.record.missing.length ? 'rec-missing' : 'rec-full'}">${c.record.missing.length ? `${c.record.missing.length} missing` : 'Complete'}</span></span></td>
+        </tr>`)}</tbody>
+      </table></div>
+    </section>
 
-    <div class="section">
-      <div class="section-head"><h2>Activity</h2><span class="aside">last 12 months</span></div>
-      <div id="ch-months"></div>
-    </div>`);
+    <section class="section">
+      <div class="section-head"><h2>Pipeline mix</h2>
+        <div class="seg" id="mix-tabs" role="tablist">${[['sector', 'Sector'], ['region', 'Region'], ['adv', 'Intermediaries'], ['months', 'Activity']].map(([key, label], i) => html`<button data-mix="${key}" class="${i ? '' : 'on'}" role="tab">${label}</button>`)}</div></div>
+      <div class="panel panel-pad"><div id="mix"></div></div>
+    </section>`);
 
   view.querySelectorAll('[data-qn]').forEach((b) => b.addEventListener('click', () => quickNew(b.dataset.qn)));
   $('#clear-demo', view)?.addEventListener('click', (e) => withBusy(e.currentTarget, () => clearDemo()));
   bindAttention($('#attn', view), () => renderDashboard(view));
-  $$('.funnel i', view).forEach((b) => {
-    const [stage, count, ev] = b.dataset.tip.split('|');
-    b.addEventListener('mousemove', (e) => showTip(e, html`<b>${stage}</b><br>${count} deal(s) · ${ev}`));
-    b.addEventListener('mouseleave', hideTip);
-  });
+  $('#attn-more', view)?.addEventListener('click', (e) => { $('#attn', view).innerHTML = String(attentionList(d.attention)); e.currentTarget.remove(); });
+  view.querySelectorAll('tr[data-href]').forEach((tr) => tr.addEventListener('click', () => { location.hash = tr.dataset.href; }));
 
-  const byEv = (rows) => rows.filter((r) => r.ev || r.count).slice(0, 6).map((r) => ({ label: r.name, value: r.ev || 0, sub: `${r.count} deal${r.count === 1 ? '' : 's'}` }));
-  hbars($('#ch-sector', view), byEv(d.by_sector), { format: (v) => money(v, cur) });
-  hbars($('#ch-region', view), byEv(d.by_region), { format: (v) => money(v, cur) });
-  hbars($('#ch-adv', view), d.intermediaries.slice(0, 6).map((r) => ({ label: r.name, value: r.deals, sub: r.best_stage || 'passed', tip: html`<b>${r.name}</b><br>${r.deals} deal(s) · ${money(r.ev, cur)}<br>Furthest: ${r.best_stage || '—'}` })), { format: (v) => num(v), empty: 'Add advisors to deals to see who brings you the best flow.' });
-  columns($('#ch-months', view), {
-    categories: d.activity_by_month.map((m) => m.month),
-    series: [{ key: 'meetings', label: 'Meetings', color: 'var(--bar)' }, { key: 'companies', label: 'Companies added', color: 'var(--bar-soft)' }],
-    rows: d.activity_by_month.map((m) => {
-      const dt = new Date(`${m.month}-01T00:00:00`);
-      return { cat: m.month, label: dt.toLocaleDateString(undefined, { month: 'short' }), tipTitle: dt.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }), meetings: m.meetings, companies: m.companies };
+  const byEv = (rows) => [...rows].filter((r) => r.ev || r.count).sort((x, y) => (y.ev || 0) - (x.ev || 0)).slice(0, 8).map((r) => ({ label: r.name, value: r.ev || 0, sub: `${r.count} deal${r.count === 1 ? '' : 's'}` }));
+  const mix = {
+    sector: (el) => hbars(el, byEv(d.by_sector), { format: (v) => money(v, cur) }),
+    region: (el) => hbars(el, byEv(d.by_region), { format: (v) => money(v, cur) }),
+    adv: (el) => hbars(el, [...d.intermediaries].sort((x, y) => (y.ev || 0) - (x.ev || 0)).slice(0, 8).map((r) => ({ label: r.name, value: r.ev || 0, sub: `${r.deals} deal${r.deals === 1 ? '' : 's'} · furthest: ${r.best_stage || 'passed'}` })), { format: (v) => money(v, cur), empty: 'Add advisors to deals to see who brings you the best flow.' }),
+    months: (el) => columns(el, {
+      categories: d.activity_by_month.map((m) => m.month),
+      series: [{ key: 'meetings', label: 'Meetings', color: 'var(--bar)' }, { key: 'companies', label: 'Companies added', color: 'var(--accent)' }],
+      rows: d.activity_by_month.map((m) => {
+        const dt = new Date(`${m.month}-01T00:00:00`);
+        return { cat: m.month, label: dt.toLocaleDateString(undefined, { month: 'short' }), tipTitle: dt.toLocaleDateString(undefined, { month: 'long', year: 'numeric' }), meetings: m.meetings, companies: m.companies };
+      }),
+      format: (v) => num(v),
+      height: 200,
     }),
-    format: (v) => num(v),
-    height: 180,
-  });
+  };
+  const showMix = (key) => {
+    $$('#mix-tabs button', view).forEach((b) => b.classList.toggle('on', b.dataset.mix === key));
+    const el = $('#mix', view); el.innerHTML = ''; mix[key](el);
+    try { sessionStorage.setItem('dt-mix', key); } catch { /* ignore */ }
+  };
+  $('#mix-tabs', view).addEventListener('click', (e) => { const b = e.target.closest('[data-mix]'); if (b) showMix(b.dataset.mix); });
+  let saved = 'sector';
+  try { saved = sessionStorage.getItem('dt-mix') || 'sector'; } catch { /* ignore */ }
+  showMix(mix[saved] ? saved : 'sector');
 }
 
 function renderWelcome(view) {

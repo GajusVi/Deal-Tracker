@@ -142,16 +142,16 @@ def attention(db, settings):
                 "logo_url": f"/files/logos/{c['logo_path']}" if c.get("logo_path") else None}
         if live and c["next_step"] and c["next_step_date"] and c["next_step_date"] < _today():
             items.append({**base, "kind": "overdue", "severity": 3, "date": c["next_step_date"],
-                          "title": f"Overdue: {c['next_step']}", "detail": f"Due {c['next_step_date']} · lead {c['deal_lead'] or 'unassigned'}"})
+                          "title": f"Next step overdue: {c['next_step']}", "detail": f"Lead {c['deal_lead'] or 'unassigned'}"})
         if c["nda_expiry_date"] and c["nda_expiry_date"] <= soon:
             expired = c["nda_expiry_date"] < _today()
             items.append({**base, "kind": "nda", "severity": 3 if expired else 2, "date": c["nda_expiry_date"],
-                          "title": "NDA expired — confirm return / destruction of materials" if expired else "NDA expiring",
-                          "detail": f"{'Expired' if expired else 'Expires'} {c['nda_expiry_date']}"})
+                          "title": "NDA expired: confirm materials were returned or destroyed" if expired else "NDA expiring soon",
+                          "detail": f"Lead {c['deal_lead'] or 'unassigned'}"})
         if c["revisit_date"] and c["revisit_date"] <= (today + timedelta(days=14)).isoformat():
             items.append({**base, "kind": "revisit", "severity": 2, "date": c["revisit_date"],
-                          "title": "Time to revisit a passed deal",
-                          "detail": f"Passed: {c['pass_reason'] or 'no reason logged'} · revisit {c['revisit_date']}"})
+                          "title": "Time to revisit this passed deal",
+                          "detail": f"Passed on {(c['pass_reason'] or 'no reason logged').lower()}"})
         if live:
             t = _parse(touch.get(c["id"]) or c["updated_at"])
             if t and (datetime.now(timezone.utc) - t).days >= 21:
@@ -160,7 +160,7 @@ def attention(db, settings):
                               "detail": f"{c['stage']} · lead {c['deal_lead'] or 'unassigned'}"})
             if not c["deal_lead"]:
                 items.append({**base, "kind": "owner", "severity": 2, "date": None,
-                              "title": "Live deal has no lead", "detail": "Knowledge on this deal has no owner"})
+                              "title": "No deal lead assigned", "detail": "Nobody owns what is known about this deal"})
 
     cold_days = int(settings.get("cold_days") or 60)
     met = contact_last_met(db)
@@ -168,8 +168,8 @@ def attention(db, settings):
         last = _parse(met.get(ct["id"]) or ct["created_at"])
         if last and (datetime.now(timezone.utc) - last).days >= cold_days:
             items.append({"kind": "cold", "severity": 1, "contact_id": ct["id"], "date": last.date().isoformat(),
-                          "title": f"Relationship going cold: {ct['name']}",
-                          "detail": f"{ct['organization'] or ''} · last met {last.date().isoformat()} · owner {ct['owner'] or 'none'}"})
+                          "contact_name": ct["name"], "title": "Strong relationship going cold",
+                          "detail": f"{ct['organization'] or 'No organisation'} · owner {ct['owner'] or 'none'}"})
     return sorted(items, key=lambda i: (-i["severity"], i["date"] or "9999"))
 
 

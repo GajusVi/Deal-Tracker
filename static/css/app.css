@@ -309,18 +309,6 @@ a.list-item:hover + .list-item, .list-item[data-m]:hover + .list-item { border-t
 .tl-item .what a { font-weight: 500; }
 
 /* attention */
-.attn { display: flex; flex-direction: column; }
-.attn-item { display: flex; gap: 12px; align-items: flex-start; padding: 11px 10px; margin: 0 -10px; border-radius: var(--r-1); cursor: pointer; transition: background var(--dur-1); }
-.attn-item + .attn-item { box-shadow: 0 -1px 0 var(--line); }
-.attn-item:hover { background: var(--fill); box-shadow: none; }
-.attn-item:hover + .attn-item { box-shadow: none; }
-.attn-ico { width: 28px; height: 28px; border-radius: 7px; display: grid; place-items: center; flex: none; background: var(--fill); color: var(--ink-2); position: relative; }
-.attn-ico::after { content: ""; position: absolute; top: -2px; right: -2px; width: 8px; height: 8px; border-radius: 50%; box-shadow: 0 0 0 2px var(--canvas); }
-.attn-ico.s3::after { background: var(--bad); }
-.attn-ico.s2::after { background: var(--warn); }
-.attn-ico.s1::after { display: none; }
-.attn-item .t { font-weight: 500; font-size: 13.5px; display: block; }
-.attn-item .d { font-size: 12.5px; color: var(--ink-3); display: block; margin-top: 1px; }
 
 /* ================================================================ tables */
 .table-wrap { overflow-x: auto; }
@@ -484,16 +472,6 @@ svg.chart .hit { fill: transparent; }
 svg.chart .col-group:hover .hit { fill: var(--fill); }
 
 /* pipeline funnel */
-.funnel { display: flex; height: 10px; border-radius: 5px; overflow: hidden; gap: 2px; background: var(--fill); }
-.funnel i { display: block; height: 100%; background: var(--bar); opacity: var(--o, 1); transition: opacity var(--dur-1); }
-.funnel i:hover { opacity: 1; background: var(--accent); }
-.funnel-rows { margin-top: 16px; display: grid; grid-auto-flow: column; grid-auto-columns: minmax(0, 1fr); border-top: 1px solid var(--line); overflow-x: auto; }
-.funnel-rows a { padding: 12px 10px 12px 0; display: block; min-width: 72px; transition: color var(--dur-1); }
-.funnel-rows a + a { padding-left: 10px; border-left: 1px solid var(--line); }
-.funnel-rows a:hover .n { color: var(--accent-ink); }
-.funnel-rows .s { font-size: 12px; color: var(--ink-2); display: flex; align-items: center; gap: 6px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.funnel-rows .n { font: 600 18px var(--sans); letter-spacing: -.01em; margin-top: 2px; font-variant-numeric: tabular-nums; }
-.funnel-rows .v { font-size: 12px; color: var(--ink-3); font-variant-numeric: tabular-nums; }
 
 /* ============================================================== pipeline */
 .board { display: flex; gap: 12px; overflow-x: auto; padding-bottom: 16px; align-items: flex-start; min-height: 60vh; scroll-snap-type: x proximity; scroll-padding: 0 4px;
@@ -863,4 +841,83 @@ code.path { display: block; font: 12px/1.5 var(--mono); padding: 8px 10px; borde
   .coverage .cov { width: auto; }
   .cov-bar { width: 56px; margin-right: 8px; }
   .people-table th:nth-child(3), .people-table td:nth-child(3), .people-table th:nth-child(4), .people-table td:nth-child(4) { display: none; }
+}
+
+
+/* ================================================================ overview
+   Built for reading: content is grouped in white panels, rows use 14px ink text with
+   13px secondary lines, and every status carries a word, not only a colour. */
+.dash-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; margin-top: 28px; align-items: start; }
+.dash-panel { padding: 6px 20px 8px; }
+.panel-head { display: flex; align-items: center; gap: 10px; padding: 14px 0 12px; border-bottom: 1px solid var(--line); }
+.panel-head h2 { font-size: 15px; font-weight: 600; flex: 1; }
+.panel-head .aside { font-size: 13px; color: var(--ink-2); display: inline-flex; align-items: center; gap: 4px; }
+.panel-head .aside svg.i { width: 14px; height: 14px; }
+.panel-head .count { font: 600 12px/1 var(--sans); padding: 4px 8px; border-radius: 999px; background: var(--fill-2); color: var(--ink); font-variant-numeric: tabular-nums; }
+.panel-more { display: block; width: 100%; border: 0; border-top: 1px solid var(--line); background: none; padding: 12px 0 8px; font: 500 13px var(--sans); color: var(--accent-ink); cursor: pointer; text-align: left; }
+.panel-more:hover { color: var(--accent); }
+
+.sev { flex: none; font: 600 11px/1 var(--sans); letter-spacing: .02em; padding: 5px 7px; border-radius: 5px; min-width: 52px; text-align: center; }
+.sev.urgent { background: color-mix(in srgb, var(--bad) 12%, transparent); color: var(--bad-ink); }
+.sev.soon { background: color-mix(in srgb, var(--warn) 16%, transparent); color: var(--warn-ink); }
+.sev.fyi { background: var(--fill); color: var(--ink-2); }
+
+.attn-row, .agenda-row { display: flex; gap: 14px; align-items: flex-start; padding: 13px 0; border-top: 1px solid var(--line); color: var(--ink); cursor: pointer; }
+.attn-row:first-child, .agenda-row:first-child { border-top: 0; }
+.attn-row .sev { margin-top: 1px; }
+.attn-row .what, .agenda-row .what { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 2px; font-size: 14px; line-height: 1.4; }
+.attn-row .what b, .agenda-row .what b { font-weight: 600; }
+.attn-row .what small, .agenda-row .what small { font-size: 13px; color: var(--ink-2); }
+.attn-row .when { flex: none; font-size: 13px; color: var(--ink-2); white-space: nowrap; font-variant-numeric: tabular-nums; padding-top: 1px; }
+.attn-row .when.urgent { color: var(--bad-ink); font-weight: 500; }
+.attn-row:hover .what b, .agenda-row:hover .what b { color: var(--accent-ink); }
+.agenda-row { align-items: center; }
+.agenda-row .date-block .d { font-size: 18px; }
+
+.stage-table { width: 100%; border-collapse: collapse; font-size: 14px; }
+.stage-table th { text-align: left; font-size: 12px; font-weight: 500; color: var(--ink-2); padding: 12px 0 8px; }
+.stage-table td { padding: 9px 0; border-top: 1px solid var(--line); }
+.stage-table .r { text-align: right; padding-right: 20px; }
+.stage-table .num { font-variant-numeric: tabular-nums; font-weight: 600; }
+.stage-table tr.zero td { color: var(--ink-3); }
+.stage-table tr.zero .num { font-weight: 400; }
+.stage-table .bar-cell { width: 34%; }
+.stage-table .bar { display: block; height: 8px; border-radius: 4px; background: var(--fill); overflow: hidden; }
+.stage-table .bar i { display: block; height: 100%; background: var(--bar); border-radius: 4px; }
+.stage-table tfoot td { border-top: 1px solid var(--line-2); font-weight: 600; padding: 11px 0 12px; }
+.stage-table th.r { padding-right: 20px; }
+
+.feed-row { display: flex; gap: 14px; justify-content: space-between; align-items: baseline; padding: 11px 0; border-top: 1px solid var(--line); font-size: 14px; line-height: 1.45; }
+.feed-row:first-child { border-top: 0; }
+.feed-row .what { min-width: 0; color: var(--ink-2); }
+.feed-row .what a { color: var(--ink); margin-right: 6px; }
+.feed-row .what a:hover b { color: var(--accent-ink); }
+.feed-row .when { flex: none; font-size: 13px; color: var(--ink-3); white-space: nowrap; }
+
+.deals-table { font-size: 14px; }
+.deals-table th { font-size: 12px; color: var(--ink-2); }
+.deals-table td { padding: 12px 14px; }
+.deals-table .cell-co b { font-weight: 600; }
+.deals-table .cell-co .prio svg.i { width: 14px; height: 14px; }
+.deals-table td.num { font-weight: 600; }
+.deals-table .next { max-width: 240px; }
+.deals-table .next span { display: block; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.deals-table .next small { display: block; font-size: 12.5px; }
+.rec-cell { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; white-space: nowrap; }
+.table-wrap.panel { padding: 0; }
+.table-wrap.panel .table th { background: transparent; }
+
+#mix-tabs { margin-left: auto; }
+@media (max-width: 1000px) { .dash-row { grid-template-columns: 1fr; } }
+.attn-row .what > span small { font-size: 13px; color: var(--ink-2); }
+#mix .hbars { max-width: 880px; }
+@media (max-width: 600px) {
+  .attn-row { display: grid; grid-template-columns: auto 1fr; gap: 8px 10px; }
+  .attn-row .sev { grid-row: 1; }
+  .attn-row .when { grid-row: 1; grid-column: 2; text-align: right; }
+  .attn-row .what { grid-column: 1 / -1; }
+  .stage-table .bar-cell, .stage-table th:last-child { display: none; }
+  .stage-table .r { padding-right: 0; }
+  .feed-row { flex-direction: column; gap: 2px; }
+  .dash-panel { padding: 4px 16px 6px; }
 }
