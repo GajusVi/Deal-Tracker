@@ -13,6 +13,7 @@ from .db import get_db, log_activity, now_iso, row, rows
 from .extractor import analyze_pages, extract_pages, fact_updates
 from .geo import ALL_COUNTRIES, REGIONS, region_for
 from . import insights
+from .seed import demo_counts
 from .models_parser import parse_model
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -134,6 +135,7 @@ def create_app(data_dir=None):
             "countries": [{"name": c, "region": region_for(c)} for c in ALL_COUNTRIES],
             "terminal_stages": sorted(dbm.TERMINAL_STAGES),
             "data_dir": app.config["DATA_DIR"],
+            "demo": demo_counts(get_db()),
         })
 
     @app.put("/api/settings")
@@ -833,6 +835,15 @@ def create_app(data_dir=None):
         seed_demo(db)
         db.commit()
         return jsonify({"ok": True})
+
+    @app.delete("/api/demo")
+    def clear_demo_data():
+        from .seed import clear_demo
+
+        db = get_db()
+        removed = clear_demo(db)
+        db.commit()
+        return jsonify({"removed": removed})
 
     return app
 

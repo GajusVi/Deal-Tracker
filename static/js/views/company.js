@@ -36,6 +36,7 @@ export async function renderCompany(view, id, tab = 'overview') {
             ${c.region ? html`<span class="chip">${c.region}</span>` : ''}
             ${c.deal_type ? html`<span class="chip">${c.deal_type}</span>` : ''}
             ${prioChip(c.priority)}
+            ${c.is_demo ? html`<span class="chip" title="Created by the sample workspace">Sample data</span>` : ''}
             ${c.status && c.status !== 'Active' ? html`<span class="chip">${c.status}</span>` : ''}
           </div>
         </div>
