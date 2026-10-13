@@ -323,3 +323,14 @@ export function missingText(missing, max = 2) {
   const head = missing.slice(0, max).join(', ');
   return `Missing ${head}${missing.length > max ? ` +${missing.length - max} more` : ''}`;
 }
+
+// ---------------------------------------------------------------- codename tickers
+// Project codenames read as short ticker labels next to company names: "Project Atlas" -> ATLAS.
+export function tickerOf(codename) {
+  const t = String(codename || '').replace(/^\s*project[\s:_-]*/i, '').trim().toUpperCase();
+  return t.length > 12 ? t.slice(0, 12) : t;
+}
+export function tkr(codename, cls = '') {
+  const t = tickerOf(codename);
+  return t ? html`<span class="tkr ${cls}" title="${codename}">${t}</span>` : '';
+}

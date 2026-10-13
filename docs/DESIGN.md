@@ -87,6 +87,7 @@ The first premium pass made the overview look calm but read slowly. Nine section
 - **Status in words.** Attention items carry "Urgent", "Soon" or "FYI" and a date ("Due Oct 12"), not only a coloured dot.
 - **Tables for comparison.** Pipeline by stage and live deals are tables with right-aligned, tabular figures and full stage names. A chart is used only when the shape matters more than the values.
 - **Every number is a way in.** Each key figure on the overview is a tile that opens where the number comes from (Pipeline, Companies sorted by EV or EBITDA, Meetings, Team), with the destination named on the tile. Facts in the summary sentence are links too. No native tooltips sit on top of figures.
+- **Codenames as tickers.** A project codename shows as a short monospaced label beside the company name everywhere the company appears ("Northwind Analytics ATLAS"), the way a terminal pairs a name with its ticker. Typing a ticker in the command palette and pressing Enter opens that deal.
 - **Subject first.** Rows lead with the company, then what happened, then the detail, without em-dashes or run-on labels.
 
 ## Sources

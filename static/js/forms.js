@@ -3,7 +3,7 @@ import { api, store, loadMeta } from './api.js';
 import {
   html, raw, $, $$, modal, formValues, options, toast, errToast, withBusy, dropzone, dominantColor,
   BRAND_SWATCHES, logo, money, ICONS, fmtDateTime, sentimentChip, avatar, strength, confirmDialog, toLocalInput,
-  initials, esc, debounce, fmtDate, ago, ic,
+  initials, esc, debounce, fmtDate, ago, ic, tkr,
 } from './ui.js';
 import { columns } from './charts.js';
 
@@ -215,7 +215,7 @@ export async function contactView(id, { onChange } = {}) {
             <dt>LinkedIn</dt><dd>${c.linkedin ? html`<a href="${/^https?:/.test(c.linkedin) ? c.linkedin : 'https://' + c.linkedin}" target="_blank" rel="noopener" class="link">Profile</a>` : '—'}</dd>
             <dt>Owner</dt><dd>${c.owner ? html`<a href="#/team/${encodeURIComponent(c.owner)}" data-close>${c.owner}</a>` : '—'}</dd>
             <dt>City</dt><dd>${c.city || '—'}</dd>
-            <dt>Works at</dt><dd>${c.company_id ? html`<a href="#/company/${c.company_id}" data-close>${c.company_name}</a>` : c.organization || '—'}</dd>
+            <dt>Works at</dt><dd>${c.company_id ? html`<a href="#/company/${c.company_id}" data-close>${c.company_name}</a>${tkr(c.company_codename)}` : c.organization || '—'}</dd>
             <dt>Added</dt><dd>${fmtDateTime(c.created_at)}</dd>
           </dl>
           ${c.notes ? html`<div class="notes-view">${c.notes}</div>` : ''}
@@ -365,7 +365,7 @@ export async function meetingView(id, { onChange } = {}) {
         <span class="chip">${m.meeting_type || 'Meeting'}</span>
         <span class="chip">${ic('calendarDays')}${fmtDateTime(m.starts_at)}${m.duration_min ? ` · ${m.duration_min} min` : ''}</span>
         ${m.location ? html`<span class="chip">${ic('pin')}${m.location}</span>` : ''}
-        ${m.company_id ? html`<a class="chip" href="#/company/${m.company_id}" data-close><span class="dot" style="background:${m.company_color}"></span>${m.company_name}</a>` : html`<span class="chip">Market / general</span>`}
+        ${m.company_id ? html`<a class="chip" href="#/company/${m.company_id}" data-close><span class="dot" style="background:${m.company_color}"></span>${m.company_name}${tkr(m.company_codename)}</a>` : html`<span class="chip">Market / general</span>`}
         ${sentimentChip(m.sentiment)}
       </div>
       ${m.attendees.length ? html`<div class="chips" style="margin-bottom:14px">${m.attendees.map((p) => html`<span class="chip" style="cursor:pointer" data-person="${p.id}">${p.name}${p.organization ? html` <small>· ${p.organization}</small>` : ''}</span>`)}</div>` : ''}

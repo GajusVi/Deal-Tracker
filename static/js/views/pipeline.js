@@ -1,5 +1,5 @@
 import { api, store } from '../api.js';
-import { html, $, $$, logo, money, errToast, ic, recordBar } from '../ui.js';
+import { html, $, $$, logo, money, errToast, ic, recordBar, tkr } from '../ui.js';
 import { quickNew, setCrumbs } from '../app.js';
 import { moveStage } from '../forms.js';
 
@@ -76,7 +76,7 @@ export async function renderPipeline(view) {
 function card(c) {
   return html`
     <a class="k-card" draggable="true" data-id="${c.id}" data-ev="${c.ev || 0}" href="#/company/${c.id}" style="--c:${c.color}">
-      <div class="top">${logo(c, 'sm')}<div style="min-width:0;flex:1"><b>${c.name}</b><small class="muted">${[c.codename, c.sector].filter(Boolean).join(' · ')}</small></div>${c.priority === 'High' ? html`<span class="prio" title="High priority">${ic('flag')}</span>` : ''}</div>
+      <div class="top">${logo(c, 'sm')}<div style="min-width:0;flex:1"><div class="nm-row"><b>${c.name}</b>${tkr(c.codename)}</div><small class="muted">${c.sector || ''}</small></div>${c.priority === 'High' ? html`<span class="prio" title="High priority">${ic('flag')}</span>` : ''}</div>
       <div class="foot"><span><b>${money(c.ev, c.currency)}</b> EV</span><span title="Days in current stage">${c.days_in_stage ?? 0}d in stage</span></div>
       <div class="foot"><span>${c.deal_lead || html`<span class="overdue">No lead</span>`}</span>${c.record ? html`<span title="Deal record: ${c.record.done} of ${c.record.total} items${c.record.missing.length ? `. Missing ${c.record.missing.join(', ')}` : ''}">${recordBar(c.record.done, c.record.total)} ${c.record.done}/${c.record.total}</span>` : ''}</div>
       ${c.next_step ? html`<div class="next">${ic('arrowRight')}<span>${c.next_step}</span></div>` : ''}

@@ -1,5 +1,5 @@
 import { api, store, loadMeta } from '../api.js';
-import { html, raw, $, $$, logo, money, num, ago, fmtDate, fmtTime, dateBlock, prioChip, toast, errToast, withBusy, ic, mult, parseDate, recordBar, missingText } from '../ui.js';
+import { html, raw, $, $$, logo, money, num, ago, fmtDate, fmtTime, dateBlock, prioChip, toast, errToast, withBusy, ic, mult, parseDate, recordBar, missingText, tkr } from '../ui.js';
 import { hbars, columns } from '../charts.js';
 import { quickNew, setCrumbs } from '../app.js';
 import { contactView, hasDemo, clearDemo, demoSummary } from '../forms.js';
@@ -21,7 +21,7 @@ export function attentionList(items) {
     return html`
     <a class="attn-row" ${a.company_id ? html`href="#/company/${a.company_id}"` : html`data-contact="${a.contact_id}"`}>
       <span class="sev ${cls}">${sev}</span>
-      <span class="what"><b>${a.company_name || a.contact_name || ''}</b><span>${a.title}<small> · ${a.detail}</small></span></span>
+      <span class="what"><span><b>${a.company_name || a.contact_name || ''}</b>${tkr(a.company_codename)}</span><span>${a.title}<small> · ${a.detail}</small></span></span>
       <span class="when ${cls === 'urgent' ? 'urgent' : ''}">${when}</span>
     </a>`;
   })}</div>`;
@@ -68,8 +68,8 @@ export async function renderDashboard(view) {
   // Coming up: next steps and meetings in one chronological agenda.
   const horizon = Date.now() + 21 * 86400000;
   const agenda = [
-    ...d.next_steps.filter((n) => n.date).map((n) => ({ when: n.date, title: n.next_step, sub: n.company_name, href: `#/company/${n.company_id}`, overdue: n.overdue, kind: 'Next step' })),
-    ...d.upcoming_meetings.map((m) => ({ when: m.starts_at, title: m.title, sub: [fmtTime(m.starts_at), m.meeting_type].filter(Boolean).join(' · '), href: m.company_id ? `#/company/${m.company_id}/meetings` : '#/meetings', kind: 'Meeting' })),
+    ...d.next_steps.filter((n) => n.date).map((n) => ({ when: n.date, title: n.next_step, sub: n.company_name, code: n.company_codename, href: `#/company/${n.company_id}`, overdue: n.overdue, kind: 'Next step' })),
+    ...d.upcoming_meetings.map((m) => ({ when: m.starts_at, title: m.title, sub: [fmtTime(m.starts_at), m.meeting_type].filter(Boolean).join(' · '), code: m.company_codename, href: m.company_id ? `#/company/${m.company_id}/meetings` : '#/meetings', kind: 'Meeting' })),
   ].filter((a) => (parseDate(a.when) || 0) <= horizon || a.overdue).sort((a, b) => String(a.when).localeCompare(String(b.when))).slice(0, 7);
 
   const flow = d.by_stage.filter((x) => !terminal.includes(x.stage));
@@ -114,7 +114,7 @@ export async function renderDashboard(view) {
         <div class="panel-head"><h2>Coming up</h2><span class="aside">next 3 weeks</span></div>
         ${agenda.length ? html`<div class="agenda">${agenda.map((a) => html`
           <a class="agenda-row" href="${a.href}">${dateBlock(a.when)}
-            <span class="what"><b>${a.title}</b><small>${a.kind === 'Meeting' ? a.sub : `Next step · ${a.sub || ''}`}</small></span>
+            <span class="what"><b>${a.title}</b><small>${a.kind === 'Meeting' ? a.sub : `Next step · ${a.sub || ''}`}${tkr(a.code)}</small></span>
             ${a.overdue ? html`<span class="sev urgent">Overdue</span>` : ''}</a>`)}</div>`
           : html`<p class="muted" style="padding:8px 0 4px">Nothing scheduled. Set next steps on deals to see them here.</p>`}
       </section>
@@ -135,7 +135,7 @@ export async function renderDashboard(view) {
         <div class="panel-head"><h2>Recent activity</h2></div>
         <div class="feed">${d.recent_activity.slice(0, 7).map((a) => html`
           <div class="feed-row">
-            <span class="what">${a.company_name ? html`<a href="#/company/${a.company_id}"><b>${a.company_name}</b></a>` : ''}<span>${a.summary.replace(' → ', ' to ')}</span></span>
+            <span class="what">${a.company_name ? html`<a href="#/company/${a.company_id}"><b>${a.company_name}</b>${tkr(a.company_codename, 'trail')}</a>` : ''}<span>${a.summary.replace(' → ', ' to ')}</span></span>
             <span class="when" title="${new Date(a.created_at).toLocaleString()}">${ago(a.created_at)}</span>
           </div>`)}</div>
       </section>
@@ -146,7 +146,7 @@ export async function renderDashboard(view) {
       <div class="table-wrap panel"><table class="table deals-table">
         <thead><tr><th>Company</th><th>Stage</th><th class="r">EV</th><th class="r">EBITDA</th><th class="r">EV / EBITDA</th><th>Lead</th><th>Next step</th><th>Deal record</th></tr></thead>
         <tbody>${deals.map((c) => html`<tr data-href="#/company/${c.id}">
-          <td><div class="cell-co">${logo(c, 'sm')}<div><b>${c.name}</b><small class="muted">${c.codename || c.sector || ''}</small></div>${c.priority === 'High' ? html`<span class="prio" title="High priority">${ic('flag')}</span>` : ''}</div></td>
+          <td><div class="cell-co">${logo(c, 'sm')}<div style="min-width:0"><div class="nm-row"><b>${c.name}</b>${tkr(c.codename)}</div><small class="muted">${c.sector || ''}</small></div>${c.priority === 'High' ? html`<span class="prio" title="High priority">${ic('flag')}</span>` : ''}</div></td>
           <td>${c.stage}</td>
           <td class="r num">${money(c.ev, c.currency)}</td>
           <td class="r num">${money(c.ebitda, c.currency)}</td>
@@ -251,7 +251,7 @@ export function stageTrack(c) {
 export function companyCard(c, i = 0) {
   return html`
     <a class="card co-card" href="#/company/${c.id}" style="--c:${c.color};--i:${i}">
-      <div class="head">${logo(c)}<div><div class="name">${c.name}</div><div class="code">${[c.codename, c.sector].filter(Boolean).join(' · ') || ' '}</div></div>${prioChip(c.priority)}</div>
+      <div class="head">${logo(c)}<div><div class="name nm-row"><b>${c.name}</b>${tkr(c.codename)}</div><div class="code">${[c.sector, c.country].filter(Boolean).join(' · ') || ' '}</div></div>${prioChip(c.priority)}</div>
       <div class="desc">${c.description || raw('<span class="muted">No description yet.</span>')}</div>
       <div>
         <div class="foot" style="margin-bottom:7px"><span style="color:var(--ink)">${c.stage}</span><span>${c.deal_lead || 'No lead'}${c.is_demo ? ' · Sample' : ''}</span></div>

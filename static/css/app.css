@@ -324,7 +324,7 @@ table.table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .table tbody tr:hover { background: var(--fill); cursor: pointer; }
 .table td.r, .table th.r { text-align: right; font-variant-numeric: tabular-nums; }
 .cell-co { display: flex; align-items: center; gap: 10px; min-width: 200px; }
-.cell-co b { display: block; font-weight: 500; }
+.cell-co b { font-weight: 500; }
 .cell-co small { display: block; font-size: 12px; }
 
 /* ================================================================= forms */
@@ -957,3 +957,19 @@ code.path { display: block; font: 12px/1.5 var(--mono); padding: 8px 10px; borde
   .kpi .label { padding-right: 18px; }
   .kpi:last-child:nth-child(odd) { grid-column: 1 / -1; }
 }
+
+/* codename ticker: a short, monospaced label beside a company name */
+.tkr { display: inline-block; font: 600 11px/1 var(--mono); letter-spacing: .05em; padding: 3px 5px 2px; border-radius: 4px; color: var(--ink-2); background: var(--fill); box-shadow: inset 0 0 0 1px var(--line); vertical-align: 1px; white-space: nowrap; margin-left: 6px; }
+.tkr.lead { margin-left: 0; margin-right: 6px; }
+.tkr.lg { font-size: 13px; padding: 5px 7px 4px; vertical-align: 6px; margin-left: 12px; }
+a:hover .tkr, .attn-row:hover .tkr, tr:hover .tkr { color: var(--ink); }
+.nm-row { display: flex; align-items: center; min-width: 0; }
+.nm-row b { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; font-weight: inherit; }
+.nm-row .tkr { flex: none; }
+.k-card .top .nm-row b { display: inline; font-weight: 500; font-size: 13.5px; }
+.co-link .tkr { margin-left: 0; }
+.chip .tkr { margin-left: 2px; padding: 2px 4px 1px; font-size: 10px; }
+.col { min-width: 0; } .col-body, .k-card { min-width: 0; } .k-card .top { overflow: hidden; }
+.deals-table td:nth-child(6) { white-space: nowrap; }
+.deals-table td, .deals-table th { padding-left: 12px; padding-right: 12px; }
+.deals-table .cell-co { min-width: 230px; }

@@ -16,6 +16,7 @@ A private, local deal-tracking app for private equity that keeps your firm's dea
 | **Models** | Upload LBO or operating models. Every upload becomes a new version (v1, v2…) with a timestamp. IRR, MOIC, entry and exit multiples, entry and exit EV, leverage, equity and hold period are read from the workbook and compared with the previous version. |
 | **Meetings & market notes** | Log management presentations, banker calls, expert calls, site visits, IC meetings and general market meetings that aren't tied to a company. Each meeting has attendees, notes, takeaways, next steps and sentiment. All of it is searchable. |
 | **Contacts & network diagram** | Track bankers, management, experts, co-investors and lenders, with relationship strength and meeting history. Map relationships such as "former colleague", "reports to" or "introduced". An interactive network diagram (drag, zoom, hover to trace connections) shows who connects to which deal. |
+| **Codename tickers** | Project codenames show as short ticker labels next to company names (Northwind Analytics `ATLAS`) across the app. Type a ticker into the command palette and press Enter to jump to the deal. |
 | **Everything else** | A command palette (Ctrl/⌘ K) that searches companies, people, meeting notes and CIM text and runs actions. Keyboard shortcuts for everything common (press `?` to see them). A timeline for each company. Light and dark mode. Settings for stages, sectors, deal types and meeting types. JSON backup. |
 
 | Company page | CIM fact review |

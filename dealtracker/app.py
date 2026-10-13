@@ -192,7 +192,7 @@ def create_app(data_dir=None):
         meetings_30 = db.execute("SELECT COUNT(*) FROM meetings WHERE starts_at >= ? AND starts_at <= ?",
                                  (since30, now_iso())).fetchone()[0]
         upcoming_meetings = rows(db.execute(
-            "SELECT m.id, m.title, m.starts_at, m.meeting_type, m.company_id, c.name AS company_name, "
+            "SELECT m.id, m.title, m.starts_at, m.meeting_type, m.company_id, c.name AS company_name, c.codename AS company_codename, "
             "c.color AS company_color, c.logo_path AS company_logo FROM meetings m "
             "LEFT JOIN companies c ON c.id = m.company_id WHERE m.starts_at >= ? ORDER BY m.starts_at LIMIT 8",
             (now_iso()[:16],),
@@ -200,7 +200,7 @@ def create_app(data_dir=None):
         for m in upcoming_meetings:
             m["company_logo_url"] = _logo_url(m.pop("company_logo"))
         next_steps = sorted(
-            [{"company_id": c["id"], "company_name": c["name"], "color": c["color"], "logo_url": c["logo_url"],
+            [{"company_id": c["id"], "company_name": c["name"], "company_codename": c["codename"], "color": c["color"], "logo_url": c["logo_url"],
               "next_step": c["next_step"], "date": c["next_step_date"], "overdue": bool(c["next_step_date"] and c["next_step_date"] < today)}
              for c in live if c["next_step"]],
             key=lambda x: x["date"] or "9999",
@@ -538,7 +538,7 @@ def create_app(data_dir=None):
     def list_contacts():
         db = get_db()
         q = request.args.get("q", "").strip()
-        sql = ("SELECT ct.*, c.name AS company_name, c.color AS company_color, "
+        sql = ("SELECT ct.*, c.name AS company_name, c.codename AS company_codename, c.color AS company_color, "
                "(SELECT COUNT(*) FROM meeting_attendees ma WHERE ma.contact_id = ct.id) AS meeting_count, "
                "(SELECT MAX(m.starts_at) FROM meetings m JOIN meeting_attendees ma ON ma.meeting_id = m.id "
                " WHERE ma.contact_id = ct.id AND m.starts_at <= ?) AS last_met "
@@ -650,7 +650,7 @@ def create_app(data_dir=None):
     @app.get("/api/meetings")
     def list_meetings():
         db = get_db()
-        sql = ("SELECT m.*, c.name AS company_name, c.color AS company_color, c.logo_path AS company_logo "
+        sql = ("SELECT m.*, c.name AS company_name, c.codename AS company_codename, c.color AS company_color, c.logo_path AS company_logo "
                "FROM meetings m LEFT JOIN companies c ON c.id = m.company_id WHERE 1=1")
         args = []
         q = request.args.get("q", "").strip()
@@ -1042,7 +1042,7 @@ def _set_attendees(db, mid, ids):
 
 def _get_meeting(mid):
     db = get_db()
-    m = row(db.execute("SELECT m.*, c.name AS company_name, c.color AS company_color FROM meetings m "
+    m = row(db.execute("SELECT m.*, c.name AS company_name, c.codename AS company_codename, c.color AS company_color FROM meetings m "
                        "LEFT JOIN companies c ON c.id = m.company_id WHERE m.id = ?", (mid,)))
     if not m:
         return None
@@ -1053,7 +1053,7 @@ def _get_meeting(mid):
 
 def _get_contact(ctid):
     db = get_db()
-    c = row(db.execute("SELECT ct.*, c.name AS company_name, c.color AS company_color FROM contacts ct "
+    c = row(db.execute("SELECT ct.*, c.name AS company_name, c.codename AS company_codename, c.color AS company_color FROM contacts ct "
                        "LEFT JOIN companies c ON c.id = ct.company_id WHERE ct.id = ?", (ctid,)))
     if not c:
         return None
@@ -1065,7 +1065,7 @@ def _get_contact(ctid):
         "UNION ALL SELECT l.id, l.relation, 'in', ct.id, ct.name, ct.organization FROM contact_links l "
         "JOIN contacts ct ON ct.id = l.from_contact_id WHERE l.to_contact_id = ?", (ctid, ctid)))
     c["meetings"] = rows(db.execute(
-        "SELECT m.id, m.title, m.starts_at, m.meeting_type, c.name AS company_name FROM meetings m "
+        "SELECT m.id, m.title, m.starts_at, m.meeting_type, c.name AS company_name, c.codename AS company_codename FROM meetings m "
         "JOIN meeting_attendees ma ON ma.meeting_id = m.id LEFT JOIN companies c ON c.id = m.company_id "
         "WHERE ma.contact_id = ? ORDER BY m.starts_at DESC", (ctid,)))
     return c
@@ -1126,7 +1126,7 @@ def _graph(company_id=None):
 
 def _activity(limit=30, company_id=None):
     db = get_db()
-    sql = ("SELECT a.*, c.name AS company_name, c.color AS company_color, c.logo_path AS company_logo FROM activity a "
+    sql = ("SELECT a.*, c.name AS company_name, c.codename AS company_codename, c.color AS company_color, c.logo_path AS company_logo FROM activity a "
            "LEFT JOIN companies c ON c.id = a.company_id")
     args = []
     if company_id:

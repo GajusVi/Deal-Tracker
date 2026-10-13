@@ -1,6 +1,6 @@
 // Router, command palette, keyboard shortcuts, quick-add and theme.
 import { api, store, loadMeta } from './api.js';
-import { html, $, $$, debounce, logo, errToast, ic, modal, initials, fmtDate } from './ui.js';
+import { html, $, $$, debounce, logo, errToast, ic, modal, initials, fmtDate, tkr, tickerOf } from './ui.js';
 import { icon as svgIcon } from './icons.js';
 import { companyForm, contactForm, meetingForm, cimWizard, contactView, meetingView, hasDemo, clearDemo } from './forms.js';
 import { renderDashboard, updateBadge } from './views/dashboard.js';
@@ -134,8 +134,10 @@ export async function openPalette() {
     const groups = [];
     const acts = actions().filter((a) => has(a.label));
     const navs = NAV.filter(([l]) => has(`Go to ${l}`)).map(([label, href, icon, kbd]) => ({ label: `Go to ${label}`, icon, kbd, run: () => { location.hash = href; } }));
-    const cos = companies.filter((c) => has(`${c.name} ${c.codename || ''} ${c.sector || ''}`)).slice(0, q ? 6 : 5)
-      .map((c) => ({ label: c.name, sub: [c.codename, c.stage].filter(Boolean).join(' · '), logo: c, run: () => { location.hash = `#/company/${c.id}`; } }));
+    // An exact ticker ("atlas") or name match jumps to the top, so ticker + Enter opens that deal.
+    const exact = (c) => ql && (tickerOf(c.codename).toLowerCase() === ql.trim() || c.name.toLowerCase() === ql.trim());
+    const cos = companies.filter((c) => has(`${c.name} ${c.codename || ''} ${c.sector || ''}`)).sort((a, b) => exact(b) - exact(a)).slice(0, q ? 6 : 5)
+      .map((c) => ({ label: c.name, code: c.codename, sub: c.stage, logo: c, run: () => { location.hash = `#/company/${c.id}`; } }));
     if (cos.length) groups.push([q ? 'Companies' : 'Recent companies', cos]);
     const rem = remote.filter((r) => r.type !== 'company').map((r) => ({
       label: r.title, sub: (r.subtitle || '').replace(/\b(\d{4}-\d{2}-\d{2})(T[\d:.+Z-]*)?\b/g, (d) => fmtDate(d.slice(0, 10))), icon: TYPE_ICON[r.type] || 'file',
@@ -153,7 +155,7 @@ export async function openPalette() {
     let i = 0;
     list.innerHTML = items.length ? String(html`${groups.map(([title, its]) => html`<div class="cmdk-group">${title}</div>${its.map((it) => {
       const idx = i++;
-      return html`<div class="cmdk-item ${idx === active ? 'active' : ''}" data-i="${idx}" role="option">${it.logo ? logo(it.logo, 'xs') : ic(it.icon)}<span>${it.label}</span>${it.sub ? html`<span class="sub">${it.sub}</span>` : html`<span class="spacer"></span>`}${it.kbd ? html`<kbd>${it.kbd}</kbd>` : ''}</div>`;
+      return html`<div class="cmdk-item ${idx === active ? 'active' : ''}" data-i="${idx}" role="option">${it.logo ? logo(it.logo, 'xs') : ic(it.icon)}<span>${it.label}${it.code ? tkr(it.code) : ''}</span>${it.sub ? html`<span class="sub">${it.sub}</span>` : html`<span class="spacer"></span>`}${it.kbd ? html`<kbd>${it.kbd}</kbd>` : ''}</div>`;
     })}`)}`) : String(html`<div class="cmdk-empty">No results for “${q}”</div>`);
     const a = list.querySelector('.cmdk-item.active');
     a && a.scrollIntoView({ block: 'nearest' });
