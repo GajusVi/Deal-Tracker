@@ -1,9 +1,9 @@
 import { api, store } from '../api.js';
 import {
   html, raw, $, $$, logo, money, mult, pct, num, ago, fmtDate, fmtDateTime, toast, errToast, withBusy, confirmDialog,
-  dropzone, dominantColor, ICONS, fileExt, bytes, avatar, strength, sentimentChip, dateBlock, prioChip, modal, options, formValues,
+  dropzone, dominantColor, ICONS, fileExt, bytes, avatar, strength, sentimentChip, dateBlock, prioChip, modal, options, formValues, ring,
 } from '../ui.js';
-import { companyForm, contactForm, meetingForm, meetingView, contactView, reviewCim, renderSeriesChart } from '../forms.js';
+import { companyForm, contactForm, meetingForm, meetingView, contactView, reviewCim, renderSeriesChart, moveStage, priorLooksBanner } from '../forms.js';
 import { networkGraph } from '../graph.js';
 
 const TABS = [
@@ -19,6 +19,7 @@ export async function renderCompany(view, id, tab = 'overview') {
   const models = c.documents.filter((d) => d.kind === 'model');
   const docs = c.documents.filter((d) => d.kind !== 'model');
   const counts = { docs: docs.length, models: models.length, meetings: c.meetings.length, people: c.contacts.length };
+  if (tab === 'onepager') return renderOnePager(view, c);
   if (!TABS.some(([k]) => k === tab)) tab = 'overview';
 
   view.innerHTML = String(html`
@@ -41,12 +42,14 @@ export async function renderCompany(view, id, tab = 'overview') {
         <div class="btn-row">
           <button class="btn" id="b-meeting">${ICONS.plus} Log meeting</button>
           <button class="btn" id="b-upload">${ICONS.upload} Upload</button>
+          <a class="btn" href="#/company/${c.id}/onepager">One-pager</a>
           <button class="btn primary" id="b-edit">${ICONS.edit} Edit</button>
         </div>
       </div>
       <div class="stepper" id="stepper">
         ${flow.map((st, i) => html`<button data-stage="${st}" class="${st === c.stage ? 'current' : i < curIdx ? 'done' : ''}" title="Move to ${st}">${st}</button>`)}
-        ${terminal.filter((t) => s.stages.includes(t)).map((t) => html`<button data-stage="${t}" class="term ${t === c.stage ? 'current' : ''} ${t === 'Passed' ? 'passed' : ''}">${t === 'Closed' ? '✓ ' : '✕ '}${t}</button>`)}
+        <span class="sep"></span>
+        ${terminal.filter((t) => s.stages.includes(t)).map((t) => html`<button data-stage="${t}" class="term ${t === c.stage ? 'current' : ''} ${t === 'Passed' ? 'passed' : 'closed'}">${t}</button>`)}
       </div>
       <div class="metrics">
         <div class="metric"><small class="muted">Enterprise value</small><b>${money(c.ev, c.currency)}</b></div>
@@ -72,8 +75,7 @@ export async function renderCompany(view, id, tab = 'overview') {
     const b = e.target.closest('[data-stage]');
     if (!b || b.dataset.stage === c.stage) return;
     try {
-      await api.patch(`/api/companies/${id}`, { stage: b.dataset.stage, ...(b.dataset.stage === 'Passed' ? { status: 'Passed' } : c.status === 'Passed' ? { status: 'Active' } : {}) });
-      toast(`Moved to ${b.dataset.stage}`); reload();
+      if (await moveStage(c, b.dataset.stage)) reload();
     } catch (err) { errToast(err); }
   });
   $('#b-edit', view).addEventListener('click', async () => { if (await companyForm(c)) reload(); });
@@ -106,8 +108,15 @@ function overview(el, c, reload) {
   const facts = (kf.facts || []).filter((f) => !['name', 'codename', 'description', 'sector', 'region'].includes(f.key));
   const tags = (c.tags || '').split(',').map((t) => t.trim()).filter(Boolean);
   el.innerHTML = String(html`
+    ${c.prior_looks && c.prior_looks.length ? priorLooksBanner(c.prior_looks) : ''}
     <div class="grid grid-dash">
       <div class="stack">
+        ${c.pass_reason ? html`<div class="card card-pad" style="box-shadow:var(--shadow), inset 3px 0 0 var(--text-3)">
+          <div class="eyebrow">Decision record</div>
+          <h2 style="margin:6px 0 8px">Passed — ${c.pass_reason}</h2>
+          ${c.pass_notes ? html`<p class="t2" style="font-size:15px">${c.pass_notes}</p>` : ''}
+          <div class="chips">${c.revisit_date ? html`<span class="chip warn">Revisit ${fmtDate(c.revisit_date)}</span>` : ''}${c.deal_lead ? html`<span class="chip">Lead: ${c.deal_lead}</span>` : ''}</div>
+        </div>` : ''}
         <div class="card card-pad">
           <h2 style="margin-bottom:8px">About</h2>
           <p class="t2">${c.description || raw('<span class="muted">No description yet — edit the company or apply facts from a CIM.</span>')}</p>
@@ -131,11 +140,18 @@ function overview(el, c, reload) {
       </div>
       <div class="stack">
         <div class="card card-pad">
+          <div class="row" style="gap:18px;align-items:center;margin-bottom:16px">${ring(c.knowledge.score, 72)}
+            <div><h2>Deal memory</h2><p class="muted" style="margin:4px 0 0;font-size:13px">What a successor would inherit if ${c.deal_lead || 'the team'} left tomorrow.</p></div></div>
+          <ul class="checklist">${c.knowledge.checks.map((k) => html`<li class="${k.done ? '' : 'off'}"><span class="ck ${k.done ? 'on' : 'off'}">${k.done ? '✓' : ''}</span>${k.label}</li>`)}</ul>
+        </div>
+        <div class="card card-pad">
           <h2 style="margin-bottom:12px">Deal details</h2>
           <dl class="kv">
             <dt>Stage</dt><dd><span class="chip stage">${c.stage}</span></dd>
             <dt>Next step</dt><dd>${c.next_step ? html`${c.next_step}${c.next_step_date ? html` <span class="${c.next_step_date < new Date().toISOString().slice(0, 10) ? 'overdue' : 'muted'}">· ${fmtDate(c.next_step_date)}</span>` : ''}` : '—'}</dd>
-            <dt>Deal lead</dt><dd>${c.deal_lead || '—'}</dd>
+            <dt>Deal lead</dt><dd>${c.deal_lead ? html`<a href="#/team/${encodeURIComponent(c.deal_lead)}">${c.deal_lead}</a>` : html`<span class="overdue">Unassigned</span>`}</dd>
+            <dt>Deal team</dt><dd>${c.deal_team || '—'}</dd>
+            <dt>NDA</dt><dd>${c.nda_signed_date ? html`Signed ${fmtDate(c.nda_signed_date)}${c.nda_expiry_date ? html` · <span class="${c.nda_expiry_date < new Date().toISOString().slice(0, 10) ? 'overdue' : ''}">ends ${fmtDate(c.nda_expiry_date)}</span>` : ''}` : '—'}</dd>
             <dt>Advisor</dt><dd>${c.advisor || '—'}</dd>
             <dt>Source</dt><dd>${c.source || '—'}</dd>
             <dt>Ownership</dt><dd>${c.ownership || '—'}</dd>
@@ -394,4 +410,63 @@ function timeline(el, c) {
         <div class="what">${a.action === 'stage' ? html`<b>Stage:</b> ` : ''}${a.summary}</div>
         <div class="when">${fmtDateTime(a.created_at)} · ${ago(a.created_at)}</div>
       </div>`)}</div></div>`);
+}
+
+// ------------------------------------------------------------------ one-pager
+function renderOnePager(view, c) {
+  const kf = c.key_facts || {};
+  const facts = (kf.facts || []).filter((f) => !['name', 'codename', 'description', 'sector', 'region', 'country', 'hq', 'revenue', 'ebitda', 'ebitda_margin_calc', 'website'].includes(f.key)).slice(0, 10);
+  const takeaways = c.meetings.filter((m) => m.takeaways || m.notes).slice(0, 3);
+  const firm = store.meta.settings.firm_name;
+  view.innerHTML = String(html`
+    <div class="print-bar">
+      <a class="btn" href="#/company/${c.id}">‹ Back to ${c.name}</a>
+      <div class="btn-row"><span class="muted" style="font-size:13px">Generated from everything captured on this deal.</span><button class="btn primary" id="print">Print / Save as PDF</button></div>
+    </div>
+    <div class="card onepager" style="--c:${c.color}">
+      <div class="op-head">
+        ${logo(c, 'lg')}
+        <div style="flex:1;min-width:0">
+          <div class="eyebrow">${c.codename || 'Company profile'}</div>
+          <h1>${c.name}</h1>
+          <div class="t2">${[c.sector, [c.hq_city, c.country].filter(Boolean).join(', '), c.deal_type].filter(Boolean).join(' · ')}</div>
+        </div>
+        <div style="text-align:right"><span class="chip stage">${c.stage}</span><div class="muted" style="font-size:12px;margin-top:6px">${fmtDate(new Date().toISOString())}</div></div>
+      </div>
+      <div class="op-metrics">
+        <div><small>Enterprise value</small><b>${money(c.ev, c.currency)}</b></div>
+        <div><small>Revenue</small><b>${money(c.revenue, c.currency)}</b></div>
+        <div><small>EBITDA · margin</small><b>${money(c.ebitda, c.currency)}</b> <span class="muted">${pct(c.ebitda_margin)}</span></div>
+        <div><small>EV / EBITDA</small><b>${mult(c.ev_ebitda)}</b></div>
+      </div>
+      <div class="op-grid">
+        <div>
+          <h3>Business overview</h3>
+          <p>${c.description || '—'}</p>
+          ${(kf.highlights || []).length ? html`<h3>Investment highlights</h3><ul class="bullets">${kf.highlights.slice(0, 6).map((h) => html`<li>${h.text}</li>`)}</ul>` : ''}
+          ${(kf.risks || []).length ? html`<h3>Key risks & diligence questions</h3><ul class="bullets">${kf.risks.slice(0, 5).map((h) => html`<li>${h.text}</li>`)}</ul>` : ''}
+          ${takeaways.length ? html`<h3>What we've learned</h3>${takeaways.map((m) => html`<p><b>${fmtDate(m.starts_at)} · ${m.meeting_type || 'Meeting'}:</b> ${m.takeaways || m.notes}</p>`)}` : ''}
+          ${c.pass_reason ? html`<h3>Decision record</h3><p><b>Passed — ${c.pass_reason}.</b> ${c.pass_notes || ''}${c.revisit_date ? html` <span class="muted">Revisit ${fmtDate(c.revisit_date)}.</span>` : ''}</p>` : ''}
+        </div>
+        <div>
+          ${kf.series && kf.series.revenue ? html`<h3>Financial profile (${kf.currency || c.currency}m)</h3><div id="op-fin"></div>` : ''}
+          <h3>Deal snapshot</h3>
+          <dl class="kv">
+            <dt>Lead / team</dt><dd>${[c.deal_lead, c.deal_team].filter(Boolean).join(', ') || '—'}</dd>
+            <dt>Advisor</dt><dd>${c.advisor || '—'}</dd>
+            <dt>Source</dt><dd>${c.source || '—'}</dd>
+            <dt>Ownership</dt><dd>${c.ownership || '—'}</dd>
+            <dt>Founded</dt><dd>${c.founded_year || '—'}</dd>
+            <dt>Employees</dt><dd>${num(c.employees)}</dd>
+            <dt>Next step</dt><dd>${c.next_step ? html`${c.next_step}${c.next_step_date ? ` · ${fmtDate(c.next_step_date)}` : ''}` : '—'}</dd>
+            <dt>NDA ends</dt><dd>${c.nda_expiry_date ? fmtDate(c.nda_expiry_date) : '—'}</dd>
+          </dl>
+          ${facts.length ? html`<h3>Key facts</h3><dl class="kv">${facts.map((f) => html`<dt>${f.label}</dt><dd>${f.display}${f.page ? html` <span class="muted">p.${f.page}</span>` : ''}</dd>`)}</dl>` : ''}
+          ${c.contacts.length ? html`<h3>Key people</h3><dl class="kv">${c.contacts.slice(0, 6).map((p) => html`<dt>${p.name}</dt><dd>${[p.title, p.organization].filter(Boolean).join(', ')}${p.owner ? html` <span class="muted">· ${p.owner}</span>` : ''}</dd>`)}</dl>` : ''}
+        </div>
+      </div>
+      <div class="op-foot"><span>${firm ? `${firm} · ` : ''}Confidential — prepared with Deal Tracker</span><span>Deal memory ${c.knowledge.score}% captured</span></div>
+    </div>`);
+  renderSeriesChart($('#op-fin', view), kf.series, kf.currency || c.currency);
+  $('#print', view).addEventListener('click', () => window.print());
 }

@@ -2,13 +2,14 @@
 import { api, store, loadMeta } from './api.js';
 import { html, $, $$, debounce, logo, errToast } from './ui.js';
 import { companyForm, contactForm, meetingForm, cimWizard, contactView, meetingView } from './forms.js';
-import { renderDashboard } from './views/dashboard.js';
+import { renderDashboard, updateBadge } from './views/dashboard.js';
 import { renderPipeline } from './views/pipeline.js';
 import { renderCompanies } from './views/companies.js';
 import { renderCompany } from './views/company.js';
 import { renderMeetings } from './views/meetings.js';
 import { renderContacts, renderNetwork } from './views/contacts.js';
 import { renderSettings } from './views/settings.js';
+import { renderTeam, renderHandover } from './views/team.js';
 
 const view = $('#view');
 const routes = [
@@ -20,6 +21,8 @@ const routes = [
   [/^\/contacts$/, 'contacts', () => renderContacts(view)],
   [/^\/network$/, 'network', () => renderNetwork(view)],
   [/^\/settings$/, 'settings', () => renderSettings(view)],
+  [/^\/team$/, 'team', () => renderTeam(view)],
+  [/^\/team\/(.+)$/, 'team', (m) => renderHandover(view, decodeURIComponent(m[1]))],
 ];
 
 let renderSeq = 0;
@@ -141,4 +144,5 @@ export function applyBranding() {
   }
   window.addEventListener('hashchange', route);
   route();
+  api.get('/api/dashboard').then((d) => updateBadge(d.attention)).catch(() => {});
 })();

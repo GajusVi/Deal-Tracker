@@ -162,3 +162,46 @@ def test_claude_result_mapping():
     assert a["summary"] == "Solid asset." and a["highlights"][0]["text"] == "Scaled platform"
     schema = _schema(["Healthcare"])
     assert set(schema["required"]) == set(schema["properties"]) and schema["additionalProperties"] is False
+
+
+def test_memory_features(client):
+    client.post("/api/demo")
+    d = client.get("/api/dashboard").json
+    kinds = {a["kind"] for a in d["attention"]}
+    assert {"nda", "overdue", "revisit", "owner", "cold"} <= kinds
+    assert 0 < d["knowledge"] <= 100 and d["intermediaries"] and len(d["team"]) == 4
+
+    # Prior looks: re-adding a passed company surfaces why it was passed.
+    hits = client.get("/api/companies/similar?name=Tidewater Logistics Pte. Ltd.").json
+    assert hits[0]["name"] == "Tidewater Logistics" and hits[0]["pass_reason"] == "Valuation gap"
+    assert client.get("/api/companies/similar?name=Zebra Widgets").json == []
+
+    # Passing records the reason in the stage history.
+    cid = client.post("/api/companies", json={"name": "Acme", "deal_lead": "Sam Lee"}).json["id"]
+    c = client.patch(f"/api/companies/{cid}", json={"stage": "Passed", "status": "Passed", "pass_reason": "Timing",
+                                                    "pass_notes": "Too early", "revisit_date": "2027-01-01"}).json
+    assert c["pass_reason"] == "Timing"
+    assert any("Passed — Timing: Too early" in a["summary"] for a in c["activity"])
+    assert {k["key"] for k in c["knowledge"]["checks"]} >= {"lead", "decision"}
+
+    # Handover pack and reassignment.
+    h = client.get("/api/handover?member=Alex Morgan").json
+    assert h["summary"]["live"] >= 1 and h["contacts"] and h["deals"][0]["knowledge"]["checks"]
+    r = client.post("/api/handover/reassign", json={"from": "Alex Morgan", "to": "Priya Shah"}).json
+    assert r["deals"] >= 1 and r["contacts"] >= 1
+    assert client.get("/api/handover?member=Alex Morgan").json["summary"]["deals"] == 0
+    assert client.post("/api/handover/reassign", json={"from": "A", "to": "A"}).status_code == 400
+
+
+def test_migration_adds_columns(tmp_path):
+    import sqlite3
+
+    from dealtracker import db as dbm
+
+    path = tmp_path / "old.db"
+    conn = sqlite3.connect(path)
+    conn.executescript(dbm.SCHEMA)  # first-release schema, without migrated columns
+    conn.close()
+    dbm.init_db(str(path))
+    cols = {r[1] for r in sqlite3.connect(path).execute("PRAGMA table_info(companies)")}
+    assert {"pass_reason", "nda_expiry_date", "deal_team"} <= cols

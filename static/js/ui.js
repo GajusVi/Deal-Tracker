@@ -305,3 +305,11 @@ export function bytes(n) {
   while (n >= 1024 && i < u.length - 1) { n /= 1024; i++; }
   return `${n.toFixed(i ? 1 : 0)} ${u[i]}`;
 }
+
+// Progress ring for "knowledge captured" scores (the number is always shown, colour is secondary).
+export function ring(score, size = 56) {
+  if (score == null) return html`<span class="ring" style="--s:${size}px"><svg viewBox="0 0 36 36"><circle class="bg" cx="18" cy="18" r="15.5" fill="none" stroke-width="3.5"/></svg><span>—</span></span>`;
+  const c = 2 * Math.PI * 15.5;
+  const col = score >= 75 ? 'var(--good)' : score >= 50 ? 'var(--warning)' : 'var(--serious)';
+  return html`<span class="ring" style="--s:${size}px;--k:${col}" title="${score}% captured"><svg viewBox="0 0 36 36"><circle class="bg" cx="18" cy="18" r="15.5" fill="none" stroke-width="3.5"/><circle class="fg" cx="18" cy="18" r="15.5" fill="none" stroke-width="3.5" stroke-dasharray="${c}" stroke-dashoffset="${c * (1 - score / 100)}"/></svg>${size >= 44 ? html`<span>${score}%</span>` : ''}</span>`;
+}

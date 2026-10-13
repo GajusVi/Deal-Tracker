@@ -3,7 +3,7 @@ import { api, store } from './api.js';
 import {
   html, raw, $, $$, modal, formValues, options, toast, errToast, withBusy, dropzone, dominantColor,
   BRAND_SWATCHES, logo, money, ICONS, fmtDateTime, sentimentChip, avatar, strength, confirmDialog, toLocalInput,
-  initials, esc,
+  initials, esc, debounce, fmtDate, ago,
 } from './ui.js';
 import { columns } from './charts.js';
 
@@ -33,6 +33,7 @@ export function companyForm(company = null, { onSaved, prefill = {} } = {}) {
           </div>
         </div>
       </div>
+      <div class="full" id="prior" hidden></div>
       <div class="field"><label>Company name *</label><input type="text" name="name" required value="${c.name || ''}" placeholder="e.g. Northwind Analytics"></div>
       <div class="field"><label>Project codename</label><input type="text" name="codename" value="${c.codename || ''}" placeholder="e.g. Project Atlas"></div>
       <div class="field"><label>Stage</label><select name="stage">${options(S().stages, c.stage)}</select></div>
@@ -41,6 +42,8 @@ export function companyForm(company = null, { onSaved, prefill = {} } = {}) {
       <div class="field"><label>Priority</label><select name="priority">${options(['High', 'Medium', 'Low'], c.priority)}</select></div>
       <div class="field"><label>Enterprise value (m)</label><div class="input-group"><select name="currency">${options(['USD', 'EUR', 'GBP', 'CHF', 'CAD', 'AUD'], c.currency)}</select><input type="number" step="any" name="ev" value="${c.ev ?? ''}" placeholder="e.g. 250"></div></div>
       <div class="field"><label>Deal type</label><select name="deal_type">${options(S().deal_types, c.deal_type, { blank: '—' })}</select></div>
+      <div class="field"><label>Deal lead</label><input type="text" name="deal_lead" list="dl-team" value="${c.deal_lead || ''}" placeholder="Who owns this deal?"></div>
+      <div class="field"><label>Deal team</label><input type="text" name="deal_team" value="${c.deal_team || ''}" placeholder="Others on the deal, comma separated"></div>
       <details class="more" ${isNew ? '' : 'open'}>
         <summary>More details — financials, location, process</summary>
         <div class="form">
@@ -54,7 +57,8 @@ export function companyForm(company = null, { onSaved, prefill = {} } = {}) {
           <div class="field"><label>Ownership</label><input type="text" name="ownership" value="${c.ownership || ''}" placeholder="Founder-owned, sponsor…"></div>
           <div class="field"><label>Sell-side advisor</label><input type="text" name="advisor" value="${c.advisor || ''}"></div>
           <div class="field"><label>Source</label><input type="text" name="source" list="dl-sources" value="${c.source || ''}"></div>
-          <div class="field"><label>Deal lead</label><input type="text" name="deal_lead" value="${c.deal_lead || ''}"></div>
+          <div class="field"><label>NDA signed</label><input type="date" name="nda_signed_date" value="${c.nda_signed_date || ''}"></div>
+          <div class="field"><label>NDA confidentiality ends</label><input type="date" name="nda_expiry_date" value="${c.nda_expiry_date || ''}"><span class="hint">You'll be reminded before it lapses.</span></div>
           <div class="field"><label>Sub-sector</label><input type="text" name="subsector" value="${c.subsector || ''}"></div>
           <div class="field"><label>Next step</label><input type="text" name="next_step" value="${c.next_step || ''}" placeholder="e.g. Submit IOI"></div>
           <div class="field"><label>Next step date</label><input type="date" name="next_step_date" value="${c.next_step_date || ''}"></div>
@@ -63,6 +67,7 @@ export function companyForm(company = null, { onSaved, prefill = {} } = {}) {
           <div class="field"><label>Status</label><select name="status">${options(['Active', 'On hold', 'Passed'], c.status || 'Active')}</select></div>
         </div>
       </details>
+      <datalist id="dl-team">${(S().team_members || []).map((n) => html`<option value="${n}">`)}</datalist>
       <datalist id="dl-countries">${countryList().map((n) => html`<option value="${n}">`)}</datalist>
       <datalist id="dl-sources">${['Banker', 'Proprietary', 'Network referral', 'Conference', 'Inbound', 'Portfolio add-on'].map((n) => html`<option value="${n}">`)}</datalist>
     </form>`;
@@ -74,6 +79,16 @@ export function companyForm(company = null, { onSaved, prefill = {} } = {}) {
       onMount(el, close) {
         const form = $('#co-form', el);
         const colorInput = $('input[name=color]', form);
+        const checkPrior = async () => {
+          const name = $('input[name=name]', form).value.trim();
+          const box = $('#prior', el);
+          if (name.length < 3) { box.hidden = true; return; }
+          const hits = await api.get(`/api/companies/similar?name=${encodeURIComponent(name)}${c.id ? `&exclude=${c.id}` : ''}`).catch(() => []);
+          box.hidden = !hits.length;
+          box.innerHTML = String(priorLooksBanner(hits));
+        };
+        $('input[name=name]', form).addEventListener('input', debounce(checkPrior, 300));
+        if (isNew && c.name) checkPrior();
         const prev = $('#logo-prev', el);
         const setColor = (col) => {
           colorInput.value = col;
@@ -146,6 +161,7 @@ export function contactForm(contact = null, { companyId, role, onSaved, prefillN
         <div class="field"><label>Title</label><input type="text" name="title" value="${c.title || ''}" placeholder="e.g. Managing Director"></div>
         <div class="field"><label>Organisation</label><input type="text" name="organization" value="${c.organization || ''}" placeholder="Firm / company"></div>
         <div class="field"><label>Works at (tracked company)</label><select name="company_id">${options(companies.map((x) => ({ value: x.id, label: x.name })), c.company_id, { blank: '— not a target company —' })}</select></div>
+        <div class="field"><label>Relationship owner</label><input type="text" name="owner" list="dl-owner" value="${c.owner || ''}" placeholder="Who at the firm knows them best?"><datalist id="dl-owner">${(S().team_members || []).map((n) => html`<option value="${n}">`)}</datalist></div>
         <div class="field"><label>Relationship strength</label><select name="strength">${options([1, 2, 3, 4, 5].map((n) => ({ value: n, label: `${n} — ${['Cold', 'Acquainted', 'Warm', 'Strong', 'Close'][n - 1]}` })), c.strength)}</select></div>
         <div class="field"><label>Email</label><input type="email" name="email" value="${c.email || ''}"></div>
         <div class="field"><label>Phone</label><input type="text" name="phone" value="${c.phone || ''}"></div>
@@ -196,6 +212,7 @@ export async function contactView(id, { onChange } = {}) {
             <dt>Email</dt><dd>${c.email ? html`<a href="mailto:${c.email}">${c.email}</a>` : '—'}</dd>
             <dt>Phone</dt><dd>${c.phone || '—'}</dd>
             <dt>LinkedIn</dt><dd>${c.linkedin ? html`<a href="${/^https?:/.test(c.linkedin) ? c.linkedin : 'https://' + c.linkedin}" target="_blank" rel="noopener">Profile ↗</a>` : '—'}</dd>
+            <dt>Owner</dt><dd>${c.owner ? html`<a href="#/team/${encodeURIComponent(c.owner)}" data-close>${c.owner}</a>` : '—'}</dd>
             <dt>City</dt><dd>${c.city || '—'}</dd>
             <dt>Works at</dt><dd>${c.company_id ? html`<a href="#/company/${c.company_id}" data-close>${c.company_name}</a>` : c.organization || '—'}</dd>
             <dt>Added</dt><dd>${fmtDateTime(c.created_at)}</dd>
@@ -518,6 +535,7 @@ export function cimWizard({ onCreated } = {}) {
     const color = BRAND_SWATCHES[Math.floor(Math.random() * 8)];
     const render = () => {
       $('#wz', el).innerHTML = String(html`
+        <div id="wz-prior" style="margin-bottom:16px" hidden></div>
         ${analysis.warning ? html`<div class="summary-box" style="margin-bottom:12px">⚠ ${analysis.warning}</div>` : ''}
         <form class="form" id="wz-form" style="margin-bottom:16px">
           <div class="field"><label>Company name *</label><input type="text" name="name" value="${pick('name') || ''}" required></div>
@@ -527,6 +545,13 @@ export function cimWizard({ onCreated } = {}) {
         </form>
         <div class="fr-cols"><div><p class="t2" style="margin-bottom:8px">Tick the facts to keep — they fill the company profile and are saved as key facts.</p>${factsReviewHTML(analysis)}</div><div class="stack">${analysisSideHTML(analysis)}</div></div>`);
       renderSeriesChart($('#fin-chart', el), analysis.series, analysis.currency);
+      const names = [pick('name'), pick('codename')].filter(Boolean);
+      Promise.all(names.map((n) => api.get(`/api/companies/similar?name=${encodeURIComponent(n)}`).catch(() => []))).then((res) => {
+        const seen = new Map();
+        res.flat().forEach((h) => seen.set(h.id, h));
+        const box = $('#wz-prior', el);
+        if (box && seen.size) { box.hidden = false; box.innerHTML = String(priorLooksBanner([...seen.values()])); }
+      });
       $('.swatches', el).addEventListener('click', (e) => {
         const s = e.target.closest('.swatch');
         if (!s) return;
@@ -562,3 +587,50 @@ export function cimWizard({ onCreated } = {}) {
 }
 
 export { initials };
+
+
+// ======================================================================= memory
+export function priorLooksBanner(hits) {
+  if (!hits || !hits.length) return '';
+  return html`<div class="banner" style="margin:0">
+    <span class="ico">↺</span>
+    <div style="flex:1;min-width:0"><b>You've looked at this before.</b>
+      ${hits.slice(0, 3).map((h) => html`<p><a href="#/company/${h.id}" data-close>${h.name}</a>${h.codename ? ` (${h.codename})` : ''} — ${h.pass_reason ? html`passed: <b>${h.pass_reason}</b>` : h.stage}${h.deal_lead ? ` · lead ${h.deal_lead}` : ''} · first seen ${fmtDate(h.created_at)}${h.last_meeting ? ` · last met ${ago(h.last_meeting)}` : ''}${h.pass_notes ? html`<br><span class="muted">“${h.pass_notes}”</span>` : ''}</p>`)}
+    </div></div>`;
+}
+
+// Ask why when a deal is passed on, so the reasoning outlives the people in the room.
+export function passDialog(company) {
+  return new Promise((resolve) => {
+    let result = null;
+    modal({
+      title: `Pass on ${company.name}`, size: 'narrow',
+      body: html`<p class="t2" style="margin-top:-4px">Record why, so whoever sees this company next knows what you knew.</p>
+        <form class="stack" id="pass-form" style="gap:14px">
+          <div class="field"><label>Main reason</label><select name="pass_reason">${options(S().pass_reasons || [], company.pass_reason || (S().pass_reasons || [])[0])}</select></div>
+          <div class="field"><label>What would change our mind?</label><textarea name="pass_notes" rows="4" placeholder="e.g. Seller wants 16x, we're at 11x. Would re-engage below 12x.">${company.pass_notes || ''}</textarea></div>
+          <div class="field"><label>Revisit on</label><input type="date" name="revisit_date" value="${company.revisit_date || ''}"><span class="hint">Optional — it will resurface under Needs attention.</span></div>
+        </form>`,
+      foot: html`<button class="btn" data-close>Cancel</button><button class="btn primary" id="pass-ok">Pass and record</button>`,
+      onMount(el, close) {
+        $('#pass-ok', el).addEventListener('click', () => { result = formValues($('#pass-form', el)); close(); });
+      },
+      onClose: () => resolve(result),
+    });
+  });
+}
+
+// Move a company to a stage; passing asks for the decision record first.
+export async function moveStage(company, stage) {
+  const body = { stage };
+  if (stage === 'Passed') {
+    const why = await passDialog(company);
+    if (!why) return null;
+    Object.assign(body, why, { status: 'Passed' });
+  } else if (company.status === 'Passed') {
+    body.status = 'Active';
+  }
+  const updated = await api.patch(`/api/companies/${company.id}`, body);
+  toast(`${company.name} → ${stage}`);
+  return updated;
+}

@@ -12,6 +12,7 @@ from . import db as dbm
 from .db import get_db, log_activity, now_iso, row, rows
 from .extractor import analyze_pages, extract_pages, fact_updates
 from .geo import ALL_COUNTRIES, REGIONS, region_for
+from . import insights
 from .models_parser import parse_model
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
@@ -25,11 +26,13 @@ COMPANY_FIELDS = {
     "description": str, "hq_city": str, "country": str, "region": str, "stage": str, "status": str,
     "priority": str, "deal_type": str, "source": str, "advisor": str, "deal_lead": str, "currency": str,
     "ev": float, "revenue": float, "ebitda": float, "employees": int, "founded_year": int,
-    "ownership": str, "next_step": str, "next_step_date": str, "tags": str,
+    "ownership": str, "next_step": str, "next_step_date": str, "tags": str, "deal_team": str,
+    "pass_reason": str, "pass_notes": str, "revisit_date": str, "nda_signed_date": str, "nda_expiry_date": str,
 }
 CONTACT_FIELDS = {
     "name": str, "title": str, "organization": str, "company_id": int, "contact_type": str,
     "email": str, "phone": str, "linkedin": str, "city": str, "country": str, "strength": int, "notes": str,
+    "owner": str,
 }
 MEETING_FIELDS = {
     "title": str, "meeting_type": str, "company_id": int, "starts_at": str, "duration_min": int,
@@ -141,10 +144,19 @@ def create_app(data_dir=None):
         for k, v in data.items():
             if k not in allowed:
                 continue
-            if k in ("stages", "sectors", "deal_types", "meeting_types", "contact_types"):
+            if k == "cold_days":
+                try:
+                    v = max(7, int(v))
+                except (TypeError, ValueError):
+                    return _err("cold_days must be a number of days")
+            if k in ("stages", "sectors", "deal_types", "meeting_types", "contact_types", "pass_reasons"):
                 if not isinstance(v, list) or not v or not all(isinstance(x, str) and x.strip() for x in v):
                     return _err(f"{k} must be a list of names")
                 v = [x.strip() for x in v]
+            if k == "team_members":
+                if not isinstance(v, list) or not all(isinstance(x, str) for x in v):
+                    return _err("team_members must be a list of names")
+                v = [x.strip() for x in v if x.strip()]
             dbm.set_setting(k, v, db)
         db.commit()
         return meta()
@@ -223,6 +235,10 @@ def create_app(data_dir=None):
             "next_steps": next_steps,
             "activity_by_month": [{"month": m, "meetings": mcount.get(m, 0), "companies": added.get(m, 0)} for m in months],
             "recent_activity": _activity(limit=14),
+            "attention": insights.attention(db, s)[:12],
+            "intermediaries": insights.intermediaries(db, stages)[:8],
+            "knowledge": _avg([kn["score"] for cid, kn in insights.knowledge(db, live).items()]),
+            "team": insights.team_overview(db, s),
             "base_currency": s.get("base_currency", "USD"),
         })
 
@@ -252,7 +268,9 @@ def create_app(data_dir=None):
             " UNION SELECT company_id, id FROM contacts WHERE company_id IS NOT NULL) GROUP BY company_id")}
         dcount = {r[0]: r[1] for r in db.execute(
             "SELECT company_id, COUNT(*) FROM documents WHERE company_id IS NOT NULL GROUP BY company_id")}
+        kn = insights.knowledge(db, comps)
         for c in comps:
+            c["knowledge"] = kn[c["id"]]["score"]
             st = stats.get(c["id"])
             c["meeting_count"] = st["n"] if st else 0
             c["last_meeting_at"] = st["last"] if st else None
@@ -688,6 +706,49 @@ def create_app(data_dir=None):
         return jsonify({"ok": True})
 
     # ------------------------------------------------------------ graph/search
+    @app.get("/api/companies/similar")
+    def similar():
+        return jsonify(insights.similar_companies(get_db(), request.args.get("name", ""),
+                                                  exclude_id=request.args.get("exclude", type=int)))
+
+    @app.get("/api/team")
+    def team():
+        db = get_db()
+        return jsonify(insights.team_overview(db, dbm.get_settings(db)))
+
+    @app.get("/api/handover")
+    def handover():
+        member = request.args.get("member", "").strip()
+        if not member:
+            return _err("Choose a team member")
+        return jsonify(insights.handover(get_db(), member))
+
+    @app.post("/api/handover/reassign")
+    def reassign():
+        data = request.get_json(force=True) or {}
+        src, dst = (data.get("from") or "").strip(), (data.get("to") or "").strip()
+        if not src or not dst or src == dst:
+            return _err("Choose who is handing over and who is taking over")
+        db = get_db()
+        moved = 0
+        for c in rows(db.execute("SELECT id, name, deal_lead, deal_team FROM companies")):
+            team = [t.strip() for t in (c["deal_team"] or "").split(",") if t.strip()]
+            changed = False
+            if (c["deal_lead"] or "") == src:
+                c["deal_lead"], changed = dst, True
+            if src in team:
+                team = [dst if t == src else t for t in team]
+                changed = True
+            team = [t for t in dict.fromkeys(team) if t != c["deal_lead"]]
+            if changed:
+                db.execute("UPDATE companies SET deal_lead = ?, deal_team = ?, updated_at = ? WHERE id = ?",
+                           (c["deal_lead"], ", ".join(team) or None, now_iso(), c["id"]))
+                log_activity(db, "handover", "company", c["id"], c["id"], f"Handed over from {src} to {dst}")
+                moved += 1
+        contacts = db.execute("UPDATE contacts SET owner = ?, updated_at = ? WHERE owner = ?", (dst, now_iso(), src)).rowcount
+        db.commit()
+        return jsonify({"deals": moved, "contacts": contacts})
+
     @app.get("/api/graph")
     def graph():
         return jsonify(_graph(request.args.get("company_id", type=int)))
@@ -732,9 +793,13 @@ def create_app(data_dir=None):
     @app.get("/api/export/companies.csv")
     def export_csv():
         comps = [_decorate_company(c) for c in rows(get_db().execute("SELECT * FROM companies ORDER BY name"))]
+        kn = insights.knowledge(get_db(), comps)
+        for c in comps:
+            c["knowledge"] = kn[c["id"]]["score"]
         cols = ["id", "name", "codename", "stage", "status", "priority", "sector", "subsector", "deal_type",
                 "country", "region", "hq_city", "currency", "ev", "revenue", "ebitda", "ebitda_margin", "ev_ebitda",
-                "employees", "founded_year", "ownership", "advisor", "source", "deal_lead", "website",
+                "employees", "founded_year", "ownership", "advisor", "source", "deal_lead", "deal_team", "website",
+                "nda_signed_date", "nda_expiry_date", "pass_reason", "pass_notes", "revisit_date", "knowledge",
                 "next_step", "next_step_date", "tags", "created_at", "updated_at"]
         buf = io.StringIO()
         w = csv.DictWriter(buf, fieldnames=cols, extrasaction="ignore")
@@ -774,6 +839,10 @@ def create_app(data_dir=None):
 
 # ---------------------------------------------------------------------- helpers
 
+def _avg(xs):
+    return round(sum(xs) / len(xs)) if xs else None
+
+
 def _logo_url(path):
     return f"/files/logos/{path}" if path else None
 
@@ -805,7 +874,12 @@ def _apply_update(db, cid, old, fields, summary=None):
         db.execute("INSERT INTO stage_history (company_id, from_stage, to_stage, changed_at) VALUES (?,?,?,?)",
                    (cid, old["stage"], fields["stage"], ts))
         fields["stage_changed_at"] = ts
-        log_activity(db, "stage", "company", cid, cid, f"{old['stage'] or '—'} → {fields['stage']}")
+        summary_txt = f"{old['stage'] or '—'} → {fields['stage']}"
+        if fields["stage"] == "Passed" and (fields.get("pass_reason") or old.get("pass_reason")):
+            summary_txt += f" — {fields.get('pass_reason') or old.get('pass_reason')}"
+            if fields.get("pass_notes"):
+                summary_txt += f": {fields['pass_notes']}"
+        log_activity(db, "stage", "company", cid, cid, summary_txt)
     fields["updated_at"] = ts
     db.execute(f"UPDATE companies SET {', '.join(f'{k} = ?' for k in fields)} WHERE id = ?", [*fields.values(), cid])
     changed = [k for k in fields if k not in ("updated_at", "stage_changed_at", "stage")]
@@ -854,6 +928,8 @@ def _get_company(cid):
     c["documents"] = [_doc_out(d) for d in rows(db.execute(
         "SELECT * FROM documents WHERE company_id = ? ORDER BY uploaded_at DESC", (cid,)))]
     c["activity"] = _activity(limit=40, company_id=cid)
+    c["knowledge"] = insights.knowledge(db, [c])[cid]
+    c["prior_looks"] = insights.similar_companies(db, c["name"], exclude_id=cid)
     return c
 
 

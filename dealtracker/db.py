@@ -168,7 +168,29 @@ DEFAULT_SETTINGS = {
         "Management", "Banker / Advisor", "Industry Expert", "Co-investor",
         "Lender", "Operating Partner", "LP", "Internal", "Other",
     ],
+    "team_members": ["Alex Morgan", "Owen Brooks"],
+    "pass_reasons": [
+        "Valuation gap", "Business quality", "Market / sector view", "Management concerns",
+        "Size / fit with fund", "Customer concentration", "Lost in process", "Timing",
+        "Diligence finding", "Other",
+    ],
+    "cold_days": 60,
     "anthropic_api_key": "",
+}
+
+# Columns added after the first release; init_db adds any that an older database lacks.
+MIGRATIONS = {
+    "companies": [
+        ("deal_team", "TEXT"),          # comma-separated names besides the lead
+        ("pass_reason", "TEXT"),
+        ("pass_notes", "TEXT"),
+        ("revisit_date", "TEXT"),
+        ("nda_signed_date", "TEXT"),
+        ("nda_expiry_date", "TEXT"),
+    ],
+    "contacts": [
+        ("owner", "TEXT"),              # team member who owns the relationship
+    ],
 }
 
 # Stages that count as "closed out" (not part of the live pipeline).
@@ -212,6 +234,11 @@ def close_db(_exc=None):
 def init_db(path):
     conn = connect(path)
     conn.executescript(SCHEMA)
+    for table, cols in MIGRATIONS.items():
+        have = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
+        for col, decl in cols:
+            if col not in have:
+                conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
     for key, value in DEFAULT_SETTINGS.items():
         conn.execute(
             "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",
