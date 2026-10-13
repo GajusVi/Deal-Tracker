@@ -168,7 +168,7 @@ DEFAULT_SETTINGS = {
         "Management", "Banker / Advisor", "Industry Expert", "Co-investor",
         "Lender", "Operating Partner", "LP", "Internal", "Other",
     ],
-    "team_members": ["Alex Morgan", "Owen Brooks"],
+    "team_members": [],
     "pass_reasons": [
         "Valuation gap", "Business quality", "Market / sector view", "Management concerns",
         "Size / fit with fund", "Customer concentration", "Lost in process", "Timing",
@@ -187,11 +187,18 @@ MIGRATIONS = {
         ("revisit_date", "TEXT"),
         ("nda_signed_date", "TEXT"),
         ("nda_expiry_date", "TEXT"),
+        ("is_demo", "INTEGER DEFAULT 0"),  # created by "Explore with demo data"
     ],
     "contacts": [
         ("owner", "TEXT"),              # team member who owns the relationship
+        ("is_demo", "INTEGER DEFAULT 0"),
+    ],
+    "meetings": [
+        ("is_demo", "INTEGER DEFAULT 0"),
     ],
 }
+
+DEMO_TABLES = ("companies", "contacts", "meetings")
 
 # Stages that count as "closed out" (not part of the live pipeline).
 TERMINAL_STAGES = {"Closed", "Passed"}
@@ -234,11 +241,18 @@ def close_db(_exc=None):
 def init_db(path):
     conn = connect(path)
     conn.executescript(SCHEMA)
+    added_demo_flag = False
     for table, cols in MIGRATIONS.items():
         have = {r["name"] for r in conn.execute(f"PRAGMA table_info({table})")}
         for col, decl in cols:
             if col not in have:
                 conn.execute(f"ALTER TABLE {table} ADD COLUMN {col} {decl}")
+                added_demo_flag = added_demo_flag or col == "is_demo"
+    if added_demo_flag:
+        # Demo data loaded before records were tagged: recognise it by its fingerprints.
+        from .seed import tag_legacy_demo
+
+        tag_legacy_demo(conn)
     for key, value in DEFAULT_SETTINGS.items():
         conn.execute(
             "INSERT OR IGNORE INTO settings (key, value) VALUES (?, ?)",

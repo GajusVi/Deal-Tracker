@@ -205,3 +205,38 @@ def test_migration_adds_columns(tmp_path):
     dbm.init_db(str(path))
     cols = {r[1] for r in sqlite3.connect(path).execute("PRAGMA table_info(companies)")}
     assert {"pass_reason", "nda_expiry_date", "deal_team"} <= cols
+
+
+def test_clear_demo_keeps_user_records(client):
+    client.post("/api/demo")
+    assert client.get("/api/meta").json["demo"] == {"companies": 9, "contacts": 16, "meetings": 12}
+    mine = client.post("/api/companies", json={"name": "My Real Co"}).json["id"]
+    person = client.post("/api/contacts", json={"name": "Real Person", "link_company_id": 1}).json["id"]
+    client.post("/api/meetings", json={"title": "Real meeting", "company_id": 1, "starts_at": "2026-10-01T10:00:00Z",
+                                       "attendee_ids": [person]})
+    removed = client.delete("/api/demo").json["removed"]
+    assert removed == {"companies": 9, "contacts": 16, "meetings": 12}
+    assert [c["id"] for c in client.get("/api/companies").json] == [mine]
+    assert [c["name"] for c in client.get("/api/contacts").json] == ["Real Person"]
+    meetings = client.get("/api/meetings").json
+    assert [m["title"] for m in meetings] == ["Real meeting"] and meetings[0]["company_id"] is None
+    meta = client.get("/api/meta").json
+    assert meta["demo"] == {"companies": 0, "contacts": 0, "meetings": 0}
+    assert meta["settings"]["team_members"] == []
+
+
+def test_legacy_demo_data_is_recognised(tmp_path):
+    import sqlite3
+
+    from dealtracker.app import create_app
+
+    create_app(str(tmp_path)).test_client().post("/api/demo")
+    db = sqlite3.connect(tmp_path / "dealtracker.db")
+    for t in ("companies", "contacts", "meetings"):  # as written by a version without the demo flag
+        db.execute(f"ALTER TABLE {t} DROP COLUMN is_demo")
+    db.commit()
+    db.close()
+    client = create_app(str(tmp_path)).test_client()
+    assert client.get("/api/meta").json["demo"] == {"companies": 9, "contacts": 16, "meetings": 12}
+    client.delete("/api/demo")
+    assert client.get("/api/companies").json == []

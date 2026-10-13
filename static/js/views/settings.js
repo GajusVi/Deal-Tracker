@@ -1,6 +1,7 @@
 import { api, store, loadMeta } from '../api.js';
 import { html, $, toast, errToast, withBusy, options, ICONS } from '../ui.js';
 import { applyBranding } from '../app.js';
+import { hasDemo, clearDemo, demoSummary } from '../forms.js';
 
 const LISTS = [
   ['team_members', 'Team members', 'Deal leads and relationship owners. Used for handover packs.'],
@@ -37,6 +38,10 @@ export async function renderSettings(view) {
       <div class="card card-pad stack">
         <h2>Data & backup</h2>
         <p class="t2" style="margin:0">All companies, notes, uploads and settings live in the data folder. Copy that folder to back up or move to another computer.</p>
+        <div class="row" style="justify-content:space-between;gap:12px;flex-wrap:wrap;padding:12px 14px;border-radius:12px;background:var(--fill)">
+          <span style="font-size:14px">${hasDemo() ? html`<b>Sample data:</b> ${demoSummary()}` : html`<span class="muted">No sample data in this workspace.</span>`}</span>
+          ${hasDemo() ? html`<button class="btn sm danger" id="clear-demo">Clear sample data</button>` : ''}
+        </div>
         <div class="btn-row">
           <a class="btn" href="/api/export/backup.json">${ICONS.download} Download JSON backup</a>
           <a class="btn" href="/api/export/companies.csv">${ICONS.download} Companies CSV</a>
@@ -66,6 +71,7 @@ export async function renderSettings(view) {
       toast('Settings saved'); renderSettings(view);
     } catch (err) { errToast(err); }
   }));
+  $('#clear-demo', view)?.addEventListener('click', async (e) => { if (await withBusy(e.currentTarget, () => clearDemo())) renderSettings(view); });
   const clr = $('#clear-key', view);
   clr && clr.addEventListener('click', async () => {
     await api.put('/api/settings', { anthropic_api_key: '' });

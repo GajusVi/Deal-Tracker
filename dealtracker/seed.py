@@ -124,6 +124,52 @@ def _logo_svg(name, color, shape):
 
 
 def seed_demo(db):
+    """Load the sample workspace; every row it creates is tagged is_demo = 1."""
+    before = {t: db.execute(f"SELECT COALESCE(MAX(id), 0) FROM {t}").fetchone()[0] for t in dbm.DEMO_TABLES}
+    _seed(db)
+    for t, max_id in before.items():
+        db.execute(f"UPDATE {t} SET is_demo = 1 WHERE id > ?", (max_id,))
+
+
+def tag_legacy_demo(db):
+    """Tag sample rows loaded by older versions, matched on exact seed values."""
+    for name, code, *_ in COMPANIES:
+        db.execute("UPDATE companies SET is_demo = 1 WHERE name = ? AND codename = ?", (name, code))
+    for name, _t, _o, _c, _ty, email, *_ in CONTACTS:
+        db.execute("UPDATE contacts SET is_demo = 1 WHERE name = ? AND email = ?", (name, email))
+    for title, mtype, *_ in MEETINGS:
+        db.execute("UPDATE meetings SET is_demo = 1 WHERE title = ? AND meeting_type = ?", (title, mtype))
+
+
+def demo_counts(db):
+    return {t: db.execute(f"SELECT COUNT(*) FROM {t} WHERE is_demo = 1").fetchone()[0] for t in dbm.DEMO_TABLES}
+
+
+def clear_demo(db):
+    """Remove sample rows (and their files). The user's own records are left alone."""
+    counts = demo_counts(db)
+    meeting_ids = [r[0] for r in db.execute("SELECT id FROM meetings WHERE is_demo = 1")]
+    contact_ids = [r[0] for r in db.execute("SELECT id FROM contacts WHERE is_demo = 1")]
+    for c in db.execute("SELECT id, logo_path FROM companies WHERE is_demo = 1").fetchall():
+        files = [("logos", c["logo_path"])] if c["logo_path"] else []
+        files += [("docs", d[0]) for d in db.execute("SELECT stored_name FROM documents WHERE company_id = ?", (c["id"],))]
+        for sub, name in files:
+            try:
+                os.remove(os.path.join(dbm.data_dir(), "uploads", sub, name))
+            except OSError:
+                pass
+    db.execute("DELETE FROM companies WHERE is_demo = 1")
+    db.execute("DELETE FROM contacts WHERE is_demo = 1")
+    db.execute("DELETE FROM meetings WHERE is_demo = 1")
+    for kind, ids in (("meeting", meeting_ids), ("contact", contact_ids)):
+        for i in ids:
+            db.execute("DELETE FROM activity WHERE entity_type = ? AND entity_id = ? AND company_id IS NULL", (kind, i))
+    if dbm.get_settings(db).get("team_members") == TEAM:
+        dbm.set_setting("team_members", [], db)
+    return counts
+
+
+def _seed(db):
     now = datetime.now(timezone.utc).replace(microsecond=0)
     stages = dbm.get_settings(db)["stages"]
     logo_dir = os.path.join(dbm.data_dir(), "uploads", "logos")

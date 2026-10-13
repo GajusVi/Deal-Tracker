@@ -1,5 +1,5 @@
 // Create/edit dialogs shared across views: companies, contacts, meetings, CIM fact review.
-import { api, store } from './api.js';
+import { api, store, loadMeta } from './api.js';
 import {
   html, raw, $, $$, modal, formValues, options, toast, errToast, withBusy, dropzone, dominantColor,
   BRAND_SWATCHES, logo, money, ICONS, fmtDateTime, sentimentChip, avatar, strength, confirmDialog, toLocalInput,
@@ -138,6 +138,7 @@ export function companyForm(company = null, { onSaved, prefill = {} } = {}) {
             resolve(saved);
             close();
             onSaved && onSaved(saved);
+            if (isNew) offerDemoCleanup();
           } catch (err) { errToast(err); }
         });
         $('#co-save', el).addEventListener('click', save);
@@ -580,6 +581,7 @@ export function cimWizard({ onCreated } = {}) {
       try {
         const created = await api.post('/api/companies', { ...v, cim_document_id: doc.id, accepted_facts: facts });
         toast(`${created.name} created from CIM`); m.close();
+        offerDemoCleanup();
         onCreated ? onCreated(created) : (location.hash = `#/company/${created.id}`);
       } catch (err) { errToast(err); }
     }));
@@ -633,4 +635,40 @@ export async function moveStage(company, stage) {
   const updated = await api.patch(`/api/companies/${company.id}`, body);
   toast(`${company.name} → ${stage}`);
   return updated;
+}
+
+// ======================================================================= sample data
+export const demoCounts = () => store.meta?.demo || { companies: 0, contacts: 0, meetings: 0 };
+export const hasDemo = () => Object.values(demoCounts()).some((n) => n > 0);
+
+export function demoSummary() {
+  const d = demoCounts();
+  const part = (n, one, many) => (n ? `${n} ${n === 1 ? one : many}` : null);
+  return [part(d.companies, 'company', 'companies'), part(d.contacts, 'contact', 'contacts'), part(d.meetings, 'meeting', 'meetings')].filter(Boolean).join(', ');
+}
+
+// Remove only records created by "Explore with demo data"; the user's own work stays.
+export async function clearDemo({ ask = true } = {}) {
+  if (ask && !(await confirmDialog(html`Remove the sample data (${demoSummary()})? Companies, contacts and meetings you added yourself are kept.`, { ok: 'Remove sample data' }))) return false;
+  try {
+    await api.del('/api/demo');
+    await loadMeta();
+    toast('Sample data removed');
+    window.dispatchEvent(new HashChangeEvent('hashchange'));
+    api.get('/api/dashboard').then((d) => {
+      const badge = document.getElementById('attn-badge');
+      const n = d.attention.filter((a) => a.severity >= 3).length;
+      if (badge) { badge.hidden = !n; badge.textContent = n; }
+    }).catch(() => {});
+    return true;
+  } catch (err) { errToast(err); return false; }
+}
+
+// After the user's first real company, offer once per session to clear the samples.
+export async function offerDemoCleanup() {
+  await loadMeta().catch(() => {});
+  if (!hasDemo()) return;
+  try { if (sessionStorage.getItem('dt-demo-offered')) return; sessionStorage.setItem('dt-demo-offered', '1'); } catch { /* storage unavailable */ }
+  const yes = await confirmDialog(html`You've started adding your own deals. Remove the sample data now? <span class="muted">(${demoSummary()})</span> Your own records are kept.`, { ok: 'Remove sample data', danger: false });
+  if (yes) clearDemo({ ask: false });
 }

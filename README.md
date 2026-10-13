@@ -60,7 +60,7 @@ or, on GitHub, click **Code → Download ZIP** and unzip it somewhere you'll kee
 - **Windows:** double-click `run.bat`. If you see *Python was not found*, reinstall Python with **Add python.exe to PATH** ticked.
 - **Linux:** `./run.sh`
 
-**3. Use it.** The first launch installs dependencies into a local `.venv` folder, which takes about a minute. After that the app starts in a second or two and opens **http://127.0.0.1:5050** in your browser. Keep the terminal window open while you use the app, and close it to stop the app. On the empty dashboard, click **Explore with demo data** to look around a sample pipeline.
+**3. Use it.** The first launch installs dependencies into a local `.venv` folder, which takes about a minute. After that the app starts in a second or two and opens **http://127.0.0.1:5050** in your browser. Keep the terminal window open while you use the app, and close it to stop the app. On the empty dashboard, click **Explore with sample data** to look around a sample pipeline. When you're ready to use it for real, click **Clear sample data** on the dashboard banner (or in **Settings**). Only the sample records are removed, and anything you've added yourself is kept. The app also offers to clear them when you add your first own company.
 
 Options: `./run.sh --port 8080`, `./run.sh --data /path/to/folder`, `./run.sh --no-browser`.
 

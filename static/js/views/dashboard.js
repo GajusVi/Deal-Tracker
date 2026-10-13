@@ -1,8 +1,8 @@
-import { api, store } from '../api.js';
+import { api, store, loadMeta } from '../api.js';
 import { html, $, logo, money, num, ago, fmtDate, fmtTime, dateBlock, prioChip, toast, errToast, withBusy, ICONS, mult, ring } from '../ui.js';
 import { hbars, columns } from '../charts.js';
 import { quickNew } from '../app.js';
-import { contactView } from '../forms.js';
+import { contactView, hasDemo, clearDemo, demoSummary } from '../forms.js';
 
 const ATTN_ICON = { overdue: '⏱', nda: '§', revisit: '↺', stale: '◔', owner: '?', cold: '❄' };
 
@@ -49,7 +49,7 @@ export async function renderDashboard(view) {
           <div class="btn-row" style="margin-top:24px">
             <button class="btn primary" data-qn="cim">${ICONS.upload} New company from CIM</button>
             <button class="btn" data-qn="company">${ICONS.plus} Add company</button>
-            <button class="btn ghost" id="demo">Explore with demo data</button>
+            <button class="btn ghost" id="demo">Explore with sample data</button>
           </div>
         </div>
         <div class="feature-tiles">
@@ -58,7 +58,7 @@ export async function renderDashboard(view) {
       </div>`);
     view.querySelectorAll('[data-qn]').forEach((b) => b.addEventListener('click', () => quickNew(b.dataset.qn)));
     $('#demo', view).addEventListener('click', (e) => withBusy(e.currentTarget, async () => {
-      try { await api.post('/api/demo'); toast('Demo workspace loaded'); renderDashboard(view); } catch (err) { errToast(err); }
+      try { await api.post('/api/demo'); await loadMeta(); toast('Sample workspace loaded'); renderDashboard(view); } catch (err) { errToast(err); }
     }));
     return;
   }
@@ -70,6 +70,9 @@ export async function renderDashboard(view) {
   const blended = k.pipeline_ebitda ? k.pipeline_ev / k.pipeline_ebitda : null;
 
   view.innerHTML = String(html`
+    ${hasDemo() ? html`<div class="banner info"><span class="ico">✦</span>
+      <div style="flex:1;min-width:0"><b>You're exploring sample data.</b><p>${demoSummary()} are examples. Clearing them keeps anything you've added yourself.</p></div>
+      <button class="btn sm" id="clear-demo">Clear sample data</button></div>` : ''}
     <div class="page-head">
       <div><div class="eyebrow">${new Date().toLocaleDateString(undefined, { weekday: 'long', day: 'numeric', month: 'long' })}</div>
         <h1 style="margin-top:6px">${greeting()}${firm ? html`<span class="muted" style="font-weight:600">, ${firm}</span>` : ''}</h1></div>
@@ -151,6 +154,7 @@ export async function renderDashboard(view) {
     <div class="co-cards">${featured.map(companyCard)}</div>`);
 
   view.querySelectorAll('[data-qn]').forEach((b) => b.addEventListener('click', () => quickNew(b.dataset.qn)));
+  $('#clear-demo', view)?.addEventListener('click', (e) => withBusy(e.currentTarget, () => clearDemo()));
   bindAttention($('#attn', view), () => renderDashboard(view));
 
   hbars($('#ch-stage', view), d.by_stage.map((s) => ({ label: s.stage, value: s.count, sub: s.ev ? money(s.ev, cur) : '', href: '#/pipeline' })), { format: (v) => num(v), empty: 'No deals yet' });
@@ -186,7 +190,7 @@ export function companyCard(c) {
       ${logo(c)}
       <div class="body">
         <div><div class="name">${c.name}</div><div class="code">${[c.codename, c.sector].filter(Boolean).join(' · ') || ' '}</div></div>
-        <div class="chips">${c.country ? html`<span class="chip">${c.country}</span>` : ''}${c.deal_type ? html`<span class="chip">${c.deal_type}</span>` : ''}${c.deal_lead ? html`<span class="chip">${c.deal_lead}</span>` : ''}</div>
+        <div class="chips">${c.is_demo ? html`<span class="chip" title="Sample data">Sample</span>` : ''}${c.country ? html`<span class="chip">${c.country}</span>` : ''}${c.deal_type ? html`<span class="chip">${c.deal_type}</span>` : ''}${c.deal_lead ? html`<span class="chip">${c.deal_lead}</span>` : ''}</div>
         <div class="stats">
           <div><small class="muted">EV</small><b>${money(c.ev, c.currency)}</b></div>
           <div><small class="muted">EBITDA</small><b>${money(c.ebitda, c.currency)}</b></div>
